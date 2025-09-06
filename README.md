@@ -1,6 +1,6 @@
 # Textorium
 
-Textorium is a Chrome extension designed to manage and save text snippets, prompts, ideas, and more—all locally on your device.
+Textorium is a Chrome extension that lets you manage and save text snippets, prompts, ideas, and more — all locally on your device, via the extension popup. It does not inject UI into webpages; all actions happen within the popup.
 
 ## Features
 
@@ -16,8 +16,11 @@ Textorium is a Chrome extension designed to manage and save text snippets, promp
 - **Export/Import**  
   Export your snippets as a JSON file for backup or sharing, and import them back when needed.
   
+- **Popup-Only UI**  
+  Works entirely inside the extension popup without injecting scripts or UI into pages.
+  
 - **Responsive Design**  
-  The extension popup is designed to be responsive and now features an improved width for better usability on larger screens.
+  Popup layout optimized for readability; long text preserves line breaks.
 
 ## Installation
 
@@ -39,6 +42,7 @@ Textorium is a Chrome extension designed to manage and save text snippets, promp
 
 - Further tag categorization and management.
 - Advanced text formatting and rich text editing.
+- Optional content-script insertion into textareas to paste saved snippets.
 - Cloud synchronization (planned for future versions).
 
 ## License

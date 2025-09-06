@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "PromptSaver",
+  "name": "Textorium",
   "version": "1.0.0",
-  "description": "A tool to manage and save prompts locally.",
+  "description": "Manage and save text snippets locally from the popup.",
   "action": {
     "default_popup": "popup.html"
   },
