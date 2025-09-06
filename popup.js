@@ -16,10 +16,18 @@ const searchBtn = document.getElementById("searchBtn");
 const clearSearchBtn = document.getElementById("clearSearchBtn");
 const filterFavoritesBtn = document.getElementById("filterFavoritesBtn");
 const clearFilterBtn = document.getElementById("clearFilterBtn");
+const sortBySelect = document.getElementById("sortBy");
+const sortDirectionBtn = document.getElementById("sortDirection");
+const applySortBtn = document.getElementById("applySortBtn");
 const exportBtn = document.getElementById("exportBtn");
 const importInput = document.getElementById("importInput");
 
 const snippetList = document.getElementById("snippetList");
+
+// Global sort state
+let currentSortBy = "createdAt";
+let isDescending = true;
+let currentFilter = null; // null, "favorites", or search term
 
 // Save new snippet
 saveSnippetBtn.addEventListener("click", async () => {
@@ -58,7 +66,7 @@ saveSnippetBtn.addEventListener("click", async () => {
   tagCategoryInput.value = "";
   contentInput.value = "";
 
-  displaySnippets(storedSnippets);
+  displaySnippetsWithSort(storedSnippets);
 });
 
 // Search functionality (on button click)
@@ -66,49 +74,73 @@ searchBtn.addEventListener("click", async () => {
   const keyword = searchInput.value.trim().toLowerCase();
   const storedSnippets = await getStoredSnippets();
   if (!keyword) {
-    displaySnippets(storedSnippets);
+    currentFilter = null;
+    displaySnippetsWithSort(storedSnippets);
     return;
   }
+  currentFilter = keyword;
   const filtered = storedSnippets.filter((s) => {
     return (
       s.title.toLowerCase().includes(keyword) ||
       s.content.toLowerCase().includes(keyword)
     );
   });
-  displaySnippets(filtered);
+  displaySnippetsWithSort(filtered);
 });
 
 // Real-time search on input
 searchInput.addEventListener("input", async () => {
   const keyword = searchInput.value.trim().toLowerCase();
   const storedSnippets = await getStoredSnippets();
+  if (!keyword) {
+    currentFilter = null;
+    displaySnippetsWithSort(storedSnippets);
+    return;
+  }
+  currentFilter = keyword;
   const filtered = storedSnippets.filter((s) => {
     return (
       s.title.toLowerCase().includes(keyword) ||
       s.content.toLowerCase().includes(keyword)
     );
   });
-  displaySnippets(filtered);
+  displaySnippetsWithSort(filtered);
 });
 
 // Clear search input and show all
 clearSearchBtn.addEventListener("click", async () => {
   searchInput.value = "";
+  currentFilter = null;
   const storedSnippets = await getStoredSnippets();
-  displaySnippets(storedSnippets);
+  displaySnippetsWithSort(storedSnippets);
 });
 
 // Filter favorites only
 filterFavoritesBtn.addEventListener("click", async () => {
+  currentFilter = "favorites";
   const snippets = await getStoredSnippets();
   const filtered = snippets.filter(s => s.favorite);
-  displaySnippets(filtered);
+  displaySnippetsWithSort(filtered);
 });
 
 // Clear favorite filter
 clearFilterBtn.addEventListener("click", async () => {
+  currentFilter = null;
   const snippets = await getStoredSnippets();
-  displaySnippets(snippets);
+  displaySnippetsWithSort(snippets);
+});
+
+// Sort direction toggle
+sortDirectionBtn.addEventListener("click", () => {
+  isDescending = !isDescending;
+  sortDirectionBtn.textContent = isDescending ? "↓ Desc" : "↑ Asc";
+});
+
+// Apply sort
+applySortBtn.addEventListener("click", async () => {
+  currentSortBy = sortBySelect.value;
+  const snippets = await getStoredSnippets();
+  displaySnippetsWithSort(snippets);
 });
 
 // Export snippets as JSON
@@ -135,7 +167,7 @@ importInput.addEventListener("change", (event) => {
       const existingSnippets = await getStoredSnippets();
       const mergedSnippets = existingSnippets.concat(importedSnippets);
       await setStoredSnippets(mergedSnippets);
-      displaySnippets(mergedSnippets);
+      displaySnippetsWithSort(mergedSnippets);
       alert("Import successful!");
     } catch (error) {
       alert("Failed to import snippets. Invalid file format.");
@@ -143,6 +175,78 @@ importInput.addEventListener("change", (event) => {
   };
   reader.readAsText(file);
 });
+
+/**
+ * Sort snippets based on current sort criteria and direction
+ */
+function sortSnippets(snippets) {
+  const sorted = [...snippets]; // Create a copy to avoid mutating original
+  
+  sorted.sort((a, b) => {
+    let comparison = 0;
+    
+    switch (currentSortBy) {
+      case "title":
+        comparison = a.title.toLowerCase().localeCompare(b.title.toLowerCase());
+        break;
+      case "createdAt":
+        comparison = a.createdAt - b.createdAt;
+        break;
+      case "updatedAt":
+        comparison = a.updatedAt - b.updatedAt;
+        break;
+      case "favorite":
+        // Favorites first, then by creation date
+        if (a.favorite === b.favorite) {
+          comparison = b.createdAt - a.createdAt; // Newer first for same favorite status
+        } else {
+          comparison = b.favorite - a.favorite; // Favorites first
+        }
+        break;
+      default:
+        comparison = b.createdAt - a.createdAt; // Default: newest first
+    }
+    
+    // Apply sort direction (only for non-favorite sorting)
+    if (currentSortBy !== "favorite") {
+      return isDescending ? -comparison : comparison;
+    }
+    return comparison;
+  });
+  
+  return sorted;
+}
+
+/**
+ * Display snippets with current sort applied
+ */
+function displaySnippetsWithSort(snippets) {
+  const sortedSnippets = sortSnippets(snippets);
+  displaySnippets(sortedSnippets);
+}
+
+/**
+ * Refresh the current view with appropriate filters and sorting
+ */
+async function refreshCurrentView() {
+  const storedSnippets = await getStoredSnippets();
+  let filteredSnippets = storedSnippets;
+  
+  // Apply current filter
+  if (currentFilter === "favorites") {
+    filteredSnippets = storedSnippets.filter(s => s.favorite);
+  } else if (typeof currentFilter === "string" && currentFilter.length > 0) {
+    // Search filter
+    filteredSnippets = storedSnippets.filter((s) => {
+      return (
+        s.title.toLowerCase().includes(currentFilter) ||
+        s.content.toLowerCase().includes(currentFilter)
+      );
+    });
+  }
+  
+  displaySnippetsWithSort(filteredSnippets);
+}
 
 /**
  * Retrieve stored snippets from chrome.storage.local.
@@ -199,7 +303,7 @@ function displaySnippets(snippets) {
       if (index > -1) {
         storedSnippets[index] = snippet;
         await setStoredSnippets(storedSnippets);
-        displaySnippets(storedSnippets);
+        refreshCurrentView();
       }
     });
     container.appendChild(favoriteBtn);
@@ -260,7 +364,7 @@ function displaySnippets(snippets) {
       if (index > -1) {
         storedSnippets[index] = snippet;
         await setStoredSnippets(storedSnippets);
-        displaySnippets(storedSnippets);
+        refreshCurrentView();
       }
     });
 
@@ -284,7 +388,7 @@ function displaySnippets(snippets) {
       const storedSnippets = await getStoredSnippets();
       const updatedSnippets = storedSnippets.filter((s) => s.id !== snippet.id);
       await setStoredSnippets(updatedSnippets);
-      displaySnippets(updatedSnippets);
+      refreshCurrentView();
     });
 
     container.appendChild(titleEl);
@@ -303,7 +407,7 @@ function displaySnippets(snippets) {
  */
 async function init() {
   const storedSnippets = await getStoredSnippets();
-  displaySnippets(storedSnippets);
+  displaySnippetsWithSort(storedSnippets);
 }
 
 // Initialize on popup load

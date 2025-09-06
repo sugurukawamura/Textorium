@@ -80,6 +80,21 @@
   </div>
   <hr />
 
+  <!-- Sort Options -->
+  <div>
+    <h4>Sort</h4>
+    <label for="sortBy">Sort by:</label>
+    <select id="sortBy">
+      <option value="createdAt">Creation Date</option>
+      <option value="updatedAt">Last Modified</option>
+      <option value="title">Title</option>
+      <option value="favorite">Favorites First</option>
+    </select>
+    <button id="sortDirection">↓ Desc</button>
+    <button id="applySortBtn">Apply Sort</button>
+  </div>
+  <hr />
+
   <!-- Snippet List -->
   <div id="snippetList"></div>
 
