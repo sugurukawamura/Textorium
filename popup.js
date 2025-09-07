@@ -119,7 +119,9 @@ exportBtn.addEventListener("click", async () => {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = "snippets_export.json";
+  const now = new Date();
+  const ts = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+  a.download = `snippets_${ts}.json`;
   a.click();
   URL.revokeObjectURL(url);
 });
@@ -131,12 +133,30 @@ importInput.addEventListener("change", (event) => {
   const reader = new FileReader();
   reader.onload = async (e) => {
     try {
-      const importedSnippets = JSON.parse(e.target.result);
-      const existingSnippets = await getStoredSnippets();
-      const mergedSnippets = existingSnippets.concat(importedSnippets);
-      await setStoredSnippets(mergedSnippets);
-      displaySnippets(mergedSnippets);
-      alert("Import successful!");
+      const parsed = JSON.parse(e.target.result);
+      if (!Array.isArray(parsed)) throw new Error('Invalid JSON structure');
+
+      const isValid = (s) => (
+        s && typeof s === 'object' &&
+        typeof s.id === 'string' && s.id &&
+        typeof s.title === 'string' &&
+        typeof s.content === 'string' &&
+        typeof s.createdAt === 'number' &&
+        typeof s.updatedAt === 'number'
+      );
+
+      const existing = await getStoredSnippets();
+      const byId = new Map(existing.map(s => [s.id, s]));
+      let importedCount = 0;
+      let invalidCount = 0;
+      for (const s of parsed) {
+        if (isValid(s)) { byId.set(s.id, s); importedCount++; }
+        else { invalidCount++; }
+      }
+      const merged = Array.from(byId.values());
+      await setStoredSnippets(merged);
+      displaySnippets(merged);
+      alert(`Import finished. Imported: ${importedCount}, Skipped invalid: ${invalidCount}.`);
     } catch (error) {
       alert("Failed to import snippets. Invalid file format.");
     }
@@ -184,7 +204,9 @@ function displaySnippets(snippets) {
     return;
   }
 
-  snippets.forEach((snippet) => {
+  // Sort by updatedAt desc
+  const list = (snippets || []).slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  list.forEach((snippet) => {
     const container = document.createElement("div");
     container.className = "snippet-item";
 
@@ -192,8 +214,10 @@ function displaySnippets(snippets) {
     const favoriteBtn = document.createElement("button");
     favoriteBtn.textContent = snippet.favorite ? "★" : "☆";
     favoriteBtn.style.marginRight = "8px";
+    favoriteBtn.setAttribute('aria-label', 'Toggle favorite');
     favoriteBtn.addEventListener("click", async () => {
       snippet.favorite = !snippet.favorite;
+      snippet.updatedAt = Date.now();
       const storedSnippets = await getStoredSnippets();
       const index = storedSnippets.findIndex((s) => s.id === snippet.id);
       if (index > -1) {
@@ -222,6 +246,16 @@ function displaySnippets(snippets) {
     // Content element
     const contentEl = document.createElement("p");
     contentEl.textContent = snippet.content;
+
+    // Copy button
+    const copyBtn = document.createElement('button');
+    copyBtn.textContent = 'Copy';
+    copyBtn.setAttribute('aria-label', 'Copy snippet');
+    copyBtn.style.marginRight = '8px';
+    copyBtn.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(snippet.content); }
+      catch (e) { alert('Failed to copy to clipboard.'); }
+    });
 
     // Edit section (initially hidden)
     const editContainer = document.createElement("div");
@@ -280,7 +314,9 @@ function displaySnippets(snippets) {
 
     const deleteBtn = document.createElement("button");
     deleteBtn.textContent = "Delete";
+    deleteBtn.setAttribute('aria-label', 'Delete snippet');
     deleteBtn.addEventListener("click", async () => {
+      if (!confirm('Delete this snippet?')) return;
       const storedSnippets = await getStoredSnippets();
       const updatedSnippets = storedSnippets.filter((s) => s.id !== snippet.id);
       await setStoredSnippets(updatedSnippets);
@@ -290,6 +326,7 @@ function displaySnippets(snippets) {
     container.appendChild(titleEl);
     container.appendChild(tagContainer);
     container.appendChild(contentEl);
+    container.appendChild(copyBtn);
     container.appendChild(editBtn);
     container.appendChild(deleteBtn);
     container.appendChild(editContainer);
