@@ -151,30 +151,86 @@ exportBtn.addEventListener("click", async () => {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = "snippets_export.json";
+  const now = new Date();
+  const ts = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+  a.download = `snippets_${ts}.json`;
   a.click();
   URL.revokeObjectURL(url);
 });
 
-// Import snippets from JSON file
+// Import snippets from JSON file (validated + de-dupe + merge policy)
 importInput.addEventListener("change", (event) => {
   const file = event.target.files[0];
   if (!file) return;
+
   const reader = new FileReader();
   reader.onload = async (e) => {
     try {
-      const importedSnippets = JSON.parse(e.target.result);
-      const existingSnippets = await getStoredSnippets();
-      const mergedSnippets = existingSnippets.concat(importedSnippets);
-      await setStoredSnippets(mergedSnippets);
-      displaySnippetsWithSort(mergedSnippets);
-      alert("Import successful!");
+      const parsed = JSON.parse(e.target.result);
+      if (!Array.isArray(parsed)) throw new Error("Invalid JSON structure");
+
+      const isValid = (s) => (
+        s && typeof s === "object" &&
+        typeof s.id === "string" && s.id &&
+        typeof s.title === "string" &&
+        typeof s.content === "string" &&
+        typeof s.createdAt === "number" &&
+        typeof s.updatedAt === "number"
+      );
+
+      const existing = await getStoredSnippets();
+      const byId = new Map(existing.map(s => [s.id, s]));
+
+      let added = 0, updated = 0, invalid = 0;
+
+      for (const s of parsed) {
+        if (!isValid(s)) { invalid++; continue; }
+        const cur = byId.get(s.id);
+        if (!cur) {
+          byId.set(s.id, s);
+          added++;
+        } else {
+          const merged = mergeSnippets(cur, s);
+          if (JSON.stringify(cur) !== JSON.stringify(merged)) updated++;
+          byId.set(s.id, merged);
+        }
+      }
+
+      const mergedAll = Array.from(byId.values());
+      await setStoredSnippets(mergedAll);
+      displaySnippetsWithSort(mergedAll);
+      alert(`Import finished. Added: ${added}, Updated: ${updated}, Skipped invalid: ${invalid}.`);
     } catch (error) {
       alert("Failed to import snippets. Invalid file format.");
     }
   };
   reader.readAsText(file);
 });
+
+// Merge policy for same ID: prefer newer updatedAt, OR favorite, union tags
+function mergeSnippets(a, b) {
+  const newer = (b.updatedAt || 0) >= (a.updatedAt || 0) ? b : a;
+  const older = newer === a ? b : a;
+
+  // Unique tags by name+category (case-insensitive)
+  const tags = [...(a.tags || []), ...(b.tags || [])];
+  const seen = new Set();
+  const uniqTags = tags.filter(t => {
+    const key = `${(t.name||"").toLowerCase()}|${(t.category||"general").toLowerCase()}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  return {
+    ...newer,
+    id: a.id,
+    createdAt: Math.min(a.createdAt || Date.now(), b.createdAt || Date.now()),
+    updatedAt: Math.max(a.updatedAt || 0, b.updatedAt || 0),
+    favorite: (a.favorite ?? false) || (b.favorite ?? false),
+    tags: uniqTags
+  };
+}
 
 /**
  * Sort snippets based on current sort criteria and direction
@@ -200,7 +256,7 @@ function sortSnippets(snippets) {
         if (a.favorite === b.favorite) {
           comparison = b.createdAt - a.createdAt; // Newer first for same favorite status
         } else {
-          comparison = b.favorite - a.favorite; // Favorites first
+          comparison = (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0); // Favorites first
         }
         break;
       default:
@@ -279,6 +335,7 @@ function generateId() {
 
 /**
  * Display the list of snippets.
+ * NOTE: ここでは **再ソートしない**。渡された順序（displaySnippetsWithSortの結果）を尊重。
  */
 function displaySnippets(snippets) {
   snippetList.innerHTML = "";
@@ -288,7 +345,8 @@ function displaySnippets(snippets) {
     return;
   }
 
-  snippets.forEach((snippet) => {
+  const list = (snippets || []); // 受け取った順序をそのまま使用
+  list.forEach((snippet) => {
     const container = document.createElement("div");
     container.className = "snippet-item";
 
@@ -296,8 +354,10 @@ function displaySnippets(snippets) {
     const favoriteBtn = document.createElement("button");
     favoriteBtn.textContent = snippet.favorite ? "★" : "☆";
     favoriteBtn.style.marginRight = "8px";
+    favoriteBtn.setAttribute('aria-label', 'Toggle favorite');
     favoriteBtn.addEventListener("click", async () => {
       snippet.favorite = !snippet.favorite;
+      snippet.updatedAt = Date.now();
       const storedSnippets = await getStoredSnippets();
       const index = storedSnippets.findIndex((s) => s.id === snippet.id);
       if (index > -1) {
@@ -326,6 +386,16 @@ function displaySnippets(snippets) {
     // Content element
     const contentEl = document.createElement("p");
     contentEl.textContent = snippet.content;
+
+    // Copy button
+    const copyBtn = document.createElement('button');
+    copyBtn.textContent = 'Copy';
+    copyBtn.setAttribute('aria-label', 'Copy snippet');
+    copyBtn.style.marginRight = '8px';
+    copyBtn.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(snippet.content); }
+      catch (e) { alert('Failed to copy to clipboard.'); }
+    });
 
     // Edit section (initially hidden)
     const editContainer = document.createElement("div");
@@ -384,7 +454,9 @@ function displaySnippets(snippets) {
 
     const deleteBtn = document.createElement("button");
     deleteBtn.textContent = "Delete";
+    deleteBtn.setAttribute('aria-label', 'Delete snippet');
     deleteBtn.addEventListener("click", async () => {
+      if (!confirm('Delete this snippet?')) return;
       const storedSnippets = await getStoredSnippets();
       const updatedSnippets = storedSnippets.filter((s) => s.id !== snippet.id);
       await setStoredSnippets(updatedSnippets);
@@ -394,6 +466,7 @@ function displaySnippets(snippets) {
     container.appendChild(titleEl);
     container.appendChild(tagContainer);
     container.appendChild(contentEl);
+    container.appendChild(copyBtn);
     container.appendChild(editBtn);
     container.appendChild(deleteBtn);
     container.appendChild(editContainer);

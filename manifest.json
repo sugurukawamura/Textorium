@@ -4,7 +4,8 @@
   "version": "1.0.0",
   "description": "Manage and save text snippets locally from the popup.",
   "action": {
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_title": "Textorium"
   },
   "permissions": [
     "storage"
