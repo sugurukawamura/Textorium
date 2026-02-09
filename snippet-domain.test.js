@@ -6,7 +6,8 @@ const {
   normalizeImportedSnippet,
   buildTagFilterOptions,
   filterSnippets,
-  sortSnippets
+  sortSnippets,
+  mergeImportedSnippets
 } = require("./snippet-domain.js");
 
 test("getSnippetTags returns [] when tags is missing or invalid", () => {
@@ -159,4 +160,66 @@ test("sortSnippets handles non-array input and keeps favorite sort stable across
 
   assert.deepStrictEqual(favoriteDesc, ["2", "3", "1"]);
   assert.deepStrictEqual(favoriteAsc, ["2", "3", "1"]);
+});
+
+test("mergeImportedSnippets returns added/updated/invalid counts and merged snippets", () => {
+  const existing = [
+    {
+      id: "id-1",
+      title: "Old",
+      content: "before",
+      createdAt: 1,
+      updatedAt: 10,
+      favorite: false,
+      tags: []
+    }
+  ];
+  const imported = [
+    {
+      id: "id-1",
+      title: "New",
+      content: "after",
+      createdAt: 1,
+      updatedAt: 99,
+      favorite: false,
+      tags: [{ name: "work", category: "" }]
+    },
+    {
+      id: "id-2",
+      title: "Added",
+      content: "new",
+      createdAt: 5,
+      updatedAt: 6,
+      favorite: false,
+      tags: []
+    },
+    {
+      id: "",
+      title: "Invalid",
+      content: "invalid",
+      createdAt: 1,
+      updatedAt: 1
+    }
+  ];
+
+  const result = mergeImportedSnippets(existing, imported, 100, (current, incoming) => ({
+    ...current,
+    ...incoming
+  }));
+
+  assert.strictEqual(result.added, 1);
+  assert.strictEqual(result.updated, 1);
+  assert.strictEqual(result.invalid, 1);
+  assert.strictEqual(result.snippets.length, 2);
+  assert.strictEqual(result.snippets.find((snippet) => snippet.id === "id-1").updatedAt, 100);
+});
+
+test("mergeImportedSnippets tolerates non-array input", () => {
+  const result = mergeImportedSnippets(null, null, 123);
+  assert.deepStrictEqual(result, {
+    snippets: [],
+    added: 0,
+    updated: 0,
+    invalid: 0
+  });
 });

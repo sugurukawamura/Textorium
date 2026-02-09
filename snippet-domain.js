@@ -174,13 +174,57 @@ function sortSnippets(snippets, sortBy = "createdAt", isDescending = true) {
   return sorted;
 }
 
+function mergeImportedSnippets(existingSnippets, importedSnippets, now, mergeById) {
+  const byId = new Map(
+    ensureSnippetsArray(existingSnippets)
+      .filter((snippet) => snippet && typeof snippet.id === "string" && snippet.id.length > 0)
+      .map((snippet) => [snippet.id, snippet])
+  );
+  const mergeFn = typeof mergeById === "function" ? mergeById : ((current, incoming) => ({ ...current, ...incoming }));
+  const normalizedNow = typeof now === "number" && Number.isFinite(now) ? now : Date.now();
+
+  let added = 0;
+  let updated = 0;
+  let invalid = 0;
+
+  ensureSnippetsArray(importedSnippets).forEach((snippet) => {
+    if (!isValidImportedSnippet(snippet)) {
+      invalid++;
+      return;
+    }
+
+    const normalized = normalizeImportedSnippet(snippet, normalizedNow);
+    const current = byId.get(normalized.id);
+
+    if (!current) {
+      byId.set(normalized.id, normalized);
+      added++;
+      return;
+    }
+
+    const merged = mergeFn(current, normalized, normalizedNow);
+    if (JSON.stringify(current) !== JSON.stringify(merged)) {
+      updated++;
+    }
+    byId.set(normalized.id, merged);
+  });
+
+  return {
+    snippets: Array.from(byId.values()),
+    added,
+    updated,
+    invalid
+  };
+}
+
 const snippetDomain = {
   getSnippetTags,
   isValidImportedSnippet,
   normalizeImportedSnippet,
   buildTagFilterOptions,
   filterSnippets,
-  sortSnippets
+  sortSnippets,
+  mergeImportedSnippets
 };
 
 if (typeof window !== "undefined") {

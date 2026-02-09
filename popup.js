@@ -489,9 +489,15 @@ clearFilterBtn.addEventListener("click", async () => {
   await refreshCurrentView();
 });
 
-sortDirectionBtn.addEventListener("click", () => {
+sortDirectionBtn.addEventListener("click", async () => {
   isDescending = !isDescending;
   updateSortDirectionLabel();
+  await refreshCurrentView();
+});
+
+sortBySelect.addEventListener("change", async () => {
+  currentSortBy = sortBySelect.value;
+  await refreshCurrentView();
 });
 
 applySortBtn.addEventListener("click", async () => {
@@ -528,38 +534,16 @@ importInput.addEventListener("change", (event) => {
 
       const existing = await getStoredSnippets();
       if (!existing) return;
-      const byId = new Map(existing.map((snippet) => [snippet.id, snippet]));
-
-      let added = 0;
-      let updated = 0;
-      let invalid = 0;
-      const now = Date.now();
-
-      for (const snippet of parsed) {
-        if (!snippetDomain.isValidImportedSnippet(snippet)) {
-          invalid++;
-          continue;
-        }
-        const normalized = snippetDomain.normalizeImportedSnippet(snippet, now);
-        const current = byId.get(snippet.id);
-        if (!current) {
-          byId.set(snippet.id, normalized);
-          added++;
-          continue;
-        }
-        const merged = mergeSnippets(current, normalized, now);
-        if (JSON.stringify(current) !== JSON.stringify(merged)) {
-          updated++;
-        }
-        byId.set(snippet.id, merged);
-      }
-
-      const mergedAll = Array.from(byId.values());
-      const saved = await setStoredSnippets(mergedAll);
+      const result = snippetDomain.mergeImportedSnippets(existing, parsed, Date.now(), mergeSnippets);
+      const saved = await setStoredSnippets(result.snippets);
       if (!saved) return;
 
       await refreshCurrentView();
-      showStatusKey("status.importFinished", { added, updated, invalid });
+      showStatusKey("status.importFinished", {
+        added: result.added,
+        updated: result.updated,
+        invalid: result.invalid
+      });
     } catch (error) {
       showErrorKey("error.importInvalid");
     }

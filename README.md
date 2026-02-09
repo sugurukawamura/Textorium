@@ -56,6 +56,7 @@ Textorium is a Chrome extension (Manifest V3) for local text snippet management.
 - Copy content to clipboard
 - Export/import JSON with validation and merge-by-id
 - Theme toggle (light/dark)
+- Collapsible sections and a compact list area for easier popup use
 
 ## 4. Data Model
 

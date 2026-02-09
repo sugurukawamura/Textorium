@@ -39,8 +39,8 @@
     body {
       margin: 0;
       width: 420px;
-      min-height: 620px;
       padding: 12px;
+      max-height: 600px;
       overflow-y: auto;
       font-family: var(--font-ui);
       background:
@@ -96,6 +96,30 @@
     .section h2 {
       margin: 0 0 8px;
       font-size: 0.9rem;
+    }
+    .section summary {
+      cursor: pointer;
+      list-style: none;
+      font-size: 0.9rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: -2px 0 8px;
+    }
+    .section summary::-webkit-details-marker {
+      display: none;
+    }
+    .section summary::after {
+      content: "▾";
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .section:not([open]) summary {
+      margin-bottom: 0;
+    }
+    .section:not([open]) summary::after {
+      content: "▸";
     }
     .grid {
       display: grid;
@@ -162,6 +186,11 @@
       background: var(--panel);
       padding: 10px;
       margin-bottom: 8px;
+    }
+    #snippetList {
+      max-height: 250px;
+      overflow-y: auto;
+      padding-right: 2px;
     }
     .snippet-head {
       display: flex;
@@ -246,8 +275,8 @@
 
     <div id="statusMessage" class="status-message hidden" role="status" aria-live="polite"></div>
 
-    <section class="section">
-      <h2 data-i18n-text="section.add">新規スニペット</h2>
+    <details class="section" open>
+      <summary><span data-i18n-text="section.add">新規スニペット</span></summary>
       <div class="grid">
         <div class="grid">
           <label for="title" data-i18n-text="field.title">タイトル</label>
@@ -269,7 +298,7 @@
         </div>
         <button id="saveSnippetBtn" class="btn-primary" data-i18n-text="action.saveSnippet" data-aria-key="aria.saveSnippet">保存</button>
       </div>
-    </section>
+    </details>
 
     <section class="section">
       <h2 data-i18n-text="section.search">検索とフィルタ</h2>
@@ -310,8 +339,8 @@
       <div id="snippetList"></div>
     </section>
 
-    <section class="section">
-      <h2 data-i18n-text="section.transfer">バックアップ/復元</h2>
+    <details class="section">
+      <summary><span data-i18n-text="section.transfer">バックアップ/復元</span></summary>
       <div class="grid">
         <button id="exportBtn" data-i18n-text="action.export" data-aria-key="aria.export">エクスポート</button>
         <div class="grid">
@@ -319,7 +348,7 @@
           <input type="file" id="importInput" accept="application/json" data-aria-key="aria.import" />
         </div>
       </div>
-    </section>
+    </details>
   </div>
 
   <script src="utils.js"></script>
