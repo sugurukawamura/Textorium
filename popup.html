@@ -123,6 +123,23 @@
     .read-more-btn:hover {
       text-decoration: underline;
     }
+    .header-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .header-container h2 {
+      margin: 0;
+    }
+    .theme-toggle-btn {
+      border: none;
+      background: transparent;
+      font-size: 1.2em;
+    }
+    .filter-select {
+      max-width: 150px;
+    }
     /* Responsive design 
     @media (max-width: 350px) {
       body {
@@ -138,9 +155,9 @@
   </style>
 </head>
 <body>
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-    <h2 style="margin: 0;">Textorium</h2>
-    <button id="themeToggleBtn" aria-label="Toggle dark mode" style="border: none; background: transparent; font-size: 1.2em;">🌙</button>
+  <div class="header-container">
+    <h2>Textorium</h2>
+    <button id="themeToggleBtn" aria-label="Toggle dark mode" class="theme-toggle-btn">🌙</button>
   </div>
   <div id="statusMessage" class="status-message hidden" role="status" aria-live="polite"></div>
 
@@ -170,7 +187,7 @@
     <button id="searchBtn" aria-label="Search snippets">Search</button>
     <button id="clearSearchBtn" aria-label="Clear search">Clear</button>
     <br /><br />
-    <select id="filterTags" aria-label="Filter by tag" style="max-width: 150px;">
+    <select id="filterTags" aria-label="Filter by tag" class="filter-select">
       <option value="">All Tags</option>
     </select>
     <button id="filterFavoritesBtn" aria-label="Show favorites only">Show Favorites Only</button>

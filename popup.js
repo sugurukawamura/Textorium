@@ -383,7 +383,10 @@ async function refreshCurrentView() {
 
   const selectedTag = filterTagsSelect.value;
   if (selectedTag) {
-    const [name, category] = selectedTag.split(":");
+    // Last colon separates name and category.
+    const lastColonIndex = selectedTag.lastIndexOf(":");
+    const name = lastColonIndex > -1 ? selectedTag.substring(0, lastColonIndex) : selectedTag;
+    const category = lastColonIndex > -1 ? selectedTag.substring(lastColonIndex + 1) : "";
     filteredSnippets = filteredSnippets.filter(s =>
       s.tags && s.tags.some(t => t.name === name && t.category === category)
     );
@@ -636,10 +639,10 @@ function createEditForm(snippet) {
     const nextTagName = editTagNameInput.value.trim();
     const nextTagCategory = editTagCategoryInput.value.trim();
 
-    let nextTags = [];
-    if (nextTagName) {
-      nextTags = [{ name: nextTagName, category: nextTagCategory || "general" }];
-    }
+    // Preserve other tags
+    const otherTags = (snippet.tags || []).slice(1);
+    const firstTag = nextTagName ? [{ name: nextTagName, category: nextTagCategory || "general" }] : [];
+    const nextTags = [...firstTag, ...otherTags];
 
     const updatedSnippet = {
       ...snippet,
