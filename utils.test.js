@@ -96,3 +96,28 @@ test('mergeSnippets favorite status is preserved if either snippet is a favorite
   const merged2 = mergeSnippets(snipC, snipD);
   assert.strictEqual(merged2.favorite, false, 'Favorite should be false if both are not favorite');
 });
+
+test('mergeSnippets preserves unknown fields from both snippets', () => {
+  const snipA = {
+    id: 'id-1',
+    title: 'A',
+    content: 'A content',
+    createdAt: 1000,
+    updatedAt: 1000,
+    customA: { enabled: true }
+  };
+  const snipB = {
+    id: 'id-1',
+    title: 'B',
+    content: 'B content',
+    createdAt: 900,
+    updatedAt: 2000,
+    customB: ['x', 'y']
+  };
+
+  const merged = mergeSnippets(snipA, snipB, 3000);
+
+  assert.deepStrictEqual(merged.customA, { enabled: true });
+  assert.deepStrictEqual(merged.customB, ['x', 'y']);
+  assert.strictEqual(merged.title, 'B', 'Newer snippet fields should still win conflicts');
+});

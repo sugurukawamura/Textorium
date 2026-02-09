@@ -29,6 +29,10 @@ const themeToggleBtn = document.getElementById("themeToggleBtn");
 
 // Theme logic
 chrome.storage.local.get(["settings"], (result) => {
+  if (chrome.runtime.lastError) {
+    showError("Failed to load settings.");
+    return;
+  }
   const settings = result.settings || {};
   if (settings.theme === "dark") {
     document.body.classList.add("dark-mode");
@@ -42,9 +46,17 @@ themeToggleBtn.addEventListener("click", () => {
   themeToggleBtn.textContent = isDark ? "☀️" : "🌙";
 
   chrome.storage.local.get(["settings"], (result) => {
+    if (chrome.runtime.lastError) {
+      showError("Failed to load settings.");
+      return;
+    }
     const settings = result.settings || {};
     settings.theme = isDark ? "dark" : "light";
-    chrome.storage.local.set({ settings });
+    chrome.storage.local.set({ settings }, () => {
+      if (chrome.runtime.lastError) {
+        showError("Failed to save settings.");
+      }
+    });
   });
 });
 
@@ -111,7 +123,7 @@ saveSnippetBtn.addEventListener("click", async () => {
   tagCategoryInput.value = "";
   contentInput.value = "";
 
-  displaySnippetsWithSort(storedSnippets);
+  await refreshCurrentView();
   showStatus("Snippet saved.");
 });
 
@@ -121,6 +133,15 @@ contentInput.addEventListener("keydown", (event) => {
     saveSnippetBtn.click();
   }
 });
+
+for (const input of [titleInput, tagNameInput, tagCategoryInput]) {
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      saveSnippetBtn.click();
+    }
+  });
+}
 
 // Search functionality (on button click)
 searchBtn.addEventListener("click", async () => {
@@ -176,9 +197,7 @@ sortDirectionBtn.addEventListener("click", () => {
 // Apply sort
 applySortBtn.addEventListener("click", async () => {
   currentSortBy = sortBySelect.value;
-  const snippets = await getStoredSnippets();
-  if (!snippets) return;
-  displaySnippetsWithSort(snippets);
+  await refreshCurrentView();
 });
 
 // Export snippets as JSON
@@ -209,15 +228,6 @@ importInput.addEventListener("change", (event) => {
       const parsed = JSON.parse(e.target.result);
       if (!Array.isArray(parsed)) throw new Error("Invalid JSON structure");
 
-      const isValid = (s) => (
-        s && typeof s === "object" &&
-        typeof s.id === "string" && s.id &&
-        typeof s.title === "string" &&
-        typeof s.content === "string" &&
-        typeof s.createdAt === "number" &&
-        typeof s.updatedAt === "number"
-      );
-
       const existing = await getStoredSnippets();
       if (!existing) return;
       const byId = new Map(existing.map(s => [s.id, s]));
@@ -226,13 +236,14 @@ importInput.addEventListener("change", (event) => {
 
       const now = Date.now();
       for (const s of parsed) {
-        if (!isValid(s)) { invalid++; continue; }
+        if (!isValidImportedSnippet(s)) { invalid++; continue; }
+        const normalized = normalizeImportedSnippet(s, now);
         const cur = byId.get(s.id);
         if (!cur) {
-          byId.set(s.id, { ...s, updatedAt: now });
+          byId.set(s.id, normalized);
           added++;
         } else {
-          const merged = mergeSnippets(cur, s, now);
+          const merged = mergeSnippets(cur, normalized, now);
           if (JSON.stringify(cur) !== JSON.stringify(merged)) updated++;
           byId.set(s.id, merged);
         }
@@ -241,7 +252,7 @@ importInput.addEventListener("change", (event) => {
       const mergedAll = Array.from(byId.values());
       const saved = await setStoredSnippets(mergedAll);
       if (!saved) return;
-      displaySnippetsWithSort(mergedAll);
+      await refreshCurrentView();
       showStatus(`Import finished. Added: ${added}, Updated: ${updated}, Skipped invalid: ${invalid}.`);
     } catch (error) {
       showError("Failed to import snippets. Invalid file format.");
@@ -262,27 +273,33 @@ function sortSnippets(snippets) {
   
   sorted.sort((a, b) => {
     let comparison = 0;
+    const aTitle = typeof a.title === "string" ? a.title : "";
+    const bTitle = typeof b.title === "string" ? b.title : "";
+    const aCreatedAt = typeof a.createdAt === "number" ? a.createdAt : 0;
+    const bCreatedAt = typeof b.createdAt === "number" ? b.createdAt : 0;
+    const aUpdatedAt = typeof a.updatedAt === "number" ? a.updatedAt : 0;
+    const bUpdatedAt = typeof b.updatedAt === "number" ? b.updatedAt : 0;
     
     switch (currentSortBy) {
       case "title":
-        comparison = a.title.toLowerCase().localeCompare(b.title.toLowerCase());
+        comparison = aTitle.toLowerCase().localeCompare(bTitle.toLowerCase());
         break;
       case "createdAt":
-        comparison = a.createdAt - b.createdAt;
+        comparison = aCreatedAt - bCreatedAt;
         break;
       case "updatedAt":
-        comparison = a.updatedAt - b.updatedAt;
+        comparison = aUpdatedAt - bUpdatedAt;
         break;
       case "favorite":
         // Favorites first, then by creation date
         if (a.favorite === b.favorite) {
-          comparison = b.createdAt - a.createdAt; // Newer first for same favorite status
+          comparison = bCreatedAt - aCreatedAt; // Newer first for same favorite status
         } else {
           comparison = (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0); // Favorites first
         }
         break;
       default:
-        comparison = b.createdAt - a.createdAt; // Default: newest first
+        comparison = bCreatedAt - aCreatedAt; // Default: newest first
     }
     
     // Apply sort direction (only for non-favorite sorting)
@@ -293,6 +310,50 @@ function sortSnippets(snippets) {
   });
   
   return sorted;
+}
+
+function isValidImportedTag(tag) {
+  return !!tag &&
+    typeof tag === "object" &&
+    typeof tag.name === "string" &&
+    tag.name.trim().length > 0 &&
+    (tag.category === undefined || typeof tag.category === "string");
+}
+
+function normalizeSnippetTags(tags) {
+  if (!Array.isArray(tags)) return [];
+  return tags
+    .filter(isValidImportedTag)
+    .map((tag) => ({
+      ...tag,
+      category: tag.category && tag.category.trim().length > 0 ? tag.category : "general"
+    }));
+}
+
+function isValidImportedSnippet(snippet) {
+  if (!snippet || typeof snippet !== "object") return false;
+  if (typeof snippet.id !== "string" || snippet.id.length === 0) return false;
+  if (typeof snippet.title !== "string") return false;
+  if (typeof snippet.content !== "string") return false;
+  if (typeof snippet.createdAt !== "number") return false;
+  if (typeof snippet.updatedAt !== "number") return false;
+  if (snippet.tags !== undefined && (!Array.isArray(snippet.tags) || !snippet.tags.every(isValidImportedTag))) {
+    return false;
+  }
+  return true;
+}
+
+function normalizeImportedSnippet(snippet, updatedAt) {
+  return {
+    ...snippet,
+    tags: normalizeSnippetTags(snippet.tags),
+    favorite: typeof snippet.favorite === "boolean" ? snippet.favorite : false,
+    updatedAt
+  };
+}
+
+function getSnippetTags(snippet) {
+  return Array.isArray(snippet.tags) ? snippet.tags : [];
 }
 
 /**
@@ -311,12 +372,13 @@ function updateTagFilterOptions(snippets) {
   const tagsMap = new Map();
 
   snippets.forEach(s => {
-    if (s.tags) {
-      s.tags.forEach(t => {
-        const key = `${t.name}:${t.category}`;
-        tagsMap.set(key, `${t.name} (${t.category})`);
-      });
-    }
+    const tags = getSnippetTags(s);
+    tags.forEach(t => {
+      if (!t || typeof t !== "object" || !t.name) return;
+      const category = t.category || "general";
+      const key = `${t.name}:${category}`;
+      tagsMap.set(key, `${t.name} (${category})`);
+    });
   });
 
   // Clear existing options except the first "All Tags"
@@ -364,15 +426,17 @@ async function refreshCurrentView() {
     const name = lastColonIndex > -1 ? selectedTag.substring(0, lastColonIndex) : selectedTag;
     const category = lastColonIndex > -1 ? selectedTag.substring(lastColonIndex + 1) : "";
     filteredSnippets = filteredSnippets.filter(s =>
-      s.tags && s.tags.some(t => t.name === name && t.category === category)
+      getSnippetTags(s).some(t => t.name === name && (t.category || "general") === category)
     );
   }
 
   if (currentSearchTerm.length > 0) {
     filteredSnippets = filteredSnippets.filter((s) => {
-      const inTitle = s.title.toLowerCase().includes(currentSearchTerm);
-      const inContent = s.content.toLowerCase().includes(currentSearchTerm);
-      const inTags = s.tags && s.tags.some(t =>
+      const title = typeof s.title === "string" ? s.title : "";
+      const content = typeof s.content === "string" ? s.content : "";
+      const inTitle = title.toLowerCase().includes(currentSearchTerm);
+      const inContent = content.toLowerCase().includes(currentSearchTerm);
+      const inTags = getSnippetTags(s).some(t =>
         (t.name && t.name.toLowerCase().includes(currentSearchTerm)) ||
         (t.category && t.category.toLowerCase().includes(currentSearchTerm))
       );
@@ -442,7 +506,7 @@ function renderSnippetItem(snippet) {
   container.appendChild(favoriteBtn);
 
   const titleEl = document.createElement("h3");
-  titleEl.textContent = snippet.title;
+  titleEl.textContent = typeof snippet.title === "string" ? snippet.title : "";
   container.appendChild(titleEl);
 
   const tagContainer = createSnippetTags(snippet);
@@ -482,11 +546,12 @@ function createSnippetFavoriteBtn(snippet) {
 
 function createSnippetTags(snippet) {
   const tagContainer = document.createElement("div");
-  if (snippet.tags && snippet.tags.length > 0) {
-    snippet.tags.forEach((t) => {
+  const tags = getSnippetTags(snippet);
+  if (tags.length > 0) {
+    tags.forEach((t) => {
       const tagEl = document.createElement("span");
       tagEl.className = "tag";
-      tagEl.textContent = `${t.name} (${t.category})`;
+      tagEl.textContent = `${t.name} (${t.category || "general"})`;
       tagContainer.appendChild(tagEl);
     });
   }
@@ -495,14 +560,15 @@ function createSnippetTags(snippet) {
 
 function createSnippetContent(snippet) {
   const container = document.createElement("div");
+  const contentText = typeof snippet.content === "string" ? snippet.content : "";
 
   const contentEl = document.createElement("p");
   contentEl.className = "snippet-content";
-  contentEl.textContent = snippet.content;
+  contentEl.textContent = contentText;
   container.appendChild(contentEl);
 
-  const lines = (snippet.content.match(/\n/g) || []).length;
-  const isLong = snippet.content.length > 200 || lines > 3;
+  const lines = (contentText.match(/\n/g) || []).length;
+  const isLong = contentText.length > 200 || lines > 3;
 
   if (isLong) {
     contentEl.classList.add("collapsed");
@@ -530,7 +596,8 @@ function createSnippetActions(snippet, editContainer) {
   copyBtn.setAttribute("aria-label", "Copy snippet");
   copyBtn.addEventListener("click", async () => {
     try {
-      await navigator.clipboard.writeText(snippet.content);
+      const contentText = typeof snippet.content === "string" ? snippet.content : String(snippet.content ?? "");
+      await navigator.clipboard.writeText(contentText);
       showStatus("Copied to clipboard.");
     } catch (e) {
       showError("Failed to copy to clipboard.");
@@ -540,6 +607,7 @@ function createSnippetActions(snippet, editContainer) {
   // Edit button
   const editBtn = document.createElement("button");
   editBtn.textContent = "Edit";
+  editBtn.setAttribute("aria-label", "Edit snippet");
   editBtn.addEventListener("click", () => {
     if (openEditContainer && openEditContainer !== editContainer) {
       openEditContainer.classList.add("hidden");
@@ -572,7 +640,7 @@ function createEditForm(snippet) {
 
   const editTitleInput = document.createElement("input");
   editTitleInput.type = "text";
-  editTitleInput.value = snippet.title;
+  editTitleInput.value = typeof snippet.title === "string" ? snippet.title : "";
   editTitleInput.setAttribute("aria-label", "Edit title");
   editTitleInput.placeholder = "Title";
 
@@ -584,18 +652,20 @@ function createEditForm(snippet) {
   editTagCategoryInput.setAttribute("aria-label", "Edit tag category");
   editTagCategoryInput.placeholder = "Tag Category";
 
-  if (snippet.tags && snippet.tags.length > 0) {
-    editTagNameInput.value = snippet.tags[0].name || "";
-    editTagCategoryInput.value = snippet.tags[0].category || "";
+  const snippetTags = getSnippetTags(snippet);
+  if (snippetTags.length > 0) {
+    editTagNameInput.value = snippetTags[0].name || "";
+    editTagCategoryInput.value = snippetTags[0].category || "";
   }
 
   const editContentTextarea = document.createElement("textarea");
-  editContentTextarea.value = snippet.content;
+  editContentTextarea.value = typeof snippet.content === "string" ? snippet.content : "";
   editContentTextarea.setAttribute("aria-label", "Edit content");
   editContentTextarea.placeholder = "Content";
 
   const saveChangesBtn = document.createElement("button");
   saveChangesBtn.textContent = "Save Changes";
+  saveChangesBtn.setAttribute("aria-label", "Save snippet changes");
   saveChangesBtn.addEventListener("click", async () => {
     const nextTitle = editTitleInput.value.trim();
     const nextContent = editContentTextarea.value.trim();
@@ -609,7 +679,7 @@ function createEditForm(snippet) {
     const nextTagCategory = editTagCategoryInput.value.trim();
 
     // Preserve other tags
-    const otherTags = (snippet.tags || []).slice(1);
+    const otherTags = getSnippetTags(snippet).slice(1);
     const firstTag = nextTagName ? [{ name: nextTagName, category: nextTagCategory || "general" }] : [];
     const nextTags = [...firstTag, ...otherTags];
 
@@ -628,17 +698,40 @@ function createEditForm(snippet) {
     if (openEditContainer === editContainer) {
       openEditContainer = null;
     }
-    refreshCurrentView();
+    await refreshCurrentView();
   });
 
   const cancelChangesBtn = document.createElement("button");
   cancelChangesBtn.textContent = "Cancel";
+  cancelChangesBtn.setAttribute("aria-label", "Cancel snippet editing");
   cancelChangesBtn.addEventListener("click", () => {
     editContainer.classList.add("hidden");
     if (openEditContainer === editContainer) {
       openEditContainer = null;
     }
   });
+
+  const handleEditKeydown = (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      cancelChangesBtn.click();
+      return;
+    }
+    if (event.key === "Enter" && event.target !== editContentTextarea) {
+      event.preventDefault();
+      saveChangesBtn.click();
+      return;
+    }
+    if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && event.target === editContentTextarea) {
+      event.preventDefault();
+      saveChangesBtn.click();
+    }
+  };
+
+  editTitleInput.addEventListener("keydown", handleEditKeydown);
+  editTagNameInput.addEventListener("keydown", handleEditKeydown);
+  editTagCategoryInput.addEventListener("keydown", handleEditKeydown);
+  editContentTextarea.addEventListener("keydown", handleEditKeydown);
 
   const editActions = document.createElement("div");
   editActions.className = "edit-actions";
@@ -683,9 +776,7 @@ function displaySnippets(snippets) {
  * Initialize the popup by loading stored snippets.
  */
 async function init() {
-  const storedSnippets = await getStoredSnippets();
-  if (!storedSnippets) return;
-  displaySnippetsWithSort(storedSnippets);
+  await refreshCurrentView();
 }
 
 // Initialize on popup load
