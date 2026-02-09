@@ -31,6 +31,13 @@ The core design is:
   - New snippet: `Ctrl/Cmd + Enter` in content, `Enter` in single-line inputs
   - Edit form: `Enter` save (single-line), `Ctrl/Cmd + Enter` save (content), `Esc` cancel
 
+## Code Structure
+
+- `popup.js`: popup UI and Chrome API integration
+- `snippet-domain.js`: pure snippet domain logic (filter/sort/import validation)
+- `utils.js`: shared utilities (`generateId`, merge policy)
+- `*.test.js`: Node-based unit tests for pure logic
+
 ## Data Model
 
 Stored under key `snippets` in `chrome.storage.local`.
@@ -69,6 +76,12 @@ Compatibility rules:
 3. Toggle favorites and tag filters
 4. Export JSON, clear storage, import JSON back
 5. Confirm data persists after extension reload and browser restart
+
+## Automated Tests
+
+- Run: `npm test`
+- Scope: pure functions only (`utils.js`, `snippet-domain.js`)
+- UI behavior remains manually tested in Chrome popup
 
 ## Product Direction
 
