@@ -1,49 +1,88 @@
 # Textorium
 
-Textorium is a Chrome extension that lets you manage and save text snippets, prompts, ideas, and more — all locally on your device, via the extension popup. It does not inject UI into webpages; all actions happen within the popup.
+Textorium is a Chrome extension (Manifest V3) for local snippet management in the popup UI.
+It is intentionally small, offline-first, and privacy-safe:
 
-## Features
+- Local storage only (`chrome.storage.local`)
+- No telemetry
+- No content scripts
+- No external network access
 
-- **Add and Edit Snippets**  
-  Save text snippets with detailed tag information (Tag Name and Tag Category) along with titles and content.
-  
-- **Favorites Functionality**  
-  Mark your frequently used snippets as favorites for quick access.
-  
-- **Search and Filter**  
-  Easily search snippets by title/content/tags, filter by tag, and filter by favorites.
-  
-- **Export/Import**  
-  Export your snippets as a JSON file for backup or sharing, and import them back when needed.
-  
-- **Popup-Only UI**  
-  Works entirely inside the extension popup without injecting scripts or UI into pages.
-  
-- **Responsive Design**  
-  Popup layout optimized for readability; long text preserves line breaks.
+## Why Textorium Exists
 
-## Installation
+Textorium focuses on quick capture and retrieval of text snippets without leaving the browser context.
+The core design is:
 
-1. Clone or download the repository.
-2. Open Chrome and navigate to `chrome://extensions`.
-3. Enable "Developer mode" in the top-right corner.
-4. Click "Load unpacked" and select the repository folder.
-5. The extension "Textorium" will appear in your extensions list.
+- Fast save and edit
+- Reliable local persistence
+- Lightweight search and filtering
+- Safe backup and restore via JSON
 
-## Usage
+## Current Feature Set
 
-1. Click the extension icon to open the popup.
-2. Add a new snippet by entering a title, tag details (Name and Category), and the content.
-3. Save your snippet (use the Save button or press Ctrl/Cmd + Enter in the content field).
-4. Use the search bar to find snippets, then combine with tag and favorites filters.
-5. Export your snippets as a JSON file for backup or import them later.
-6. In edit mode, press `Enter` to save (in text fields), `Ctrl/Cmd + Enter` to save from the content field, and `Esc` to cancel.
+- Create, edit, delete snippets
+- Favorite toggle
+- Search by title, content, and tags
+- Filter by tag and favorites
+- Sort by created/updated/title/favorite
+- Copy snippet content to clipboard
+- Export/import JSON with validation and merge-by-id behavior
+- Keyboard shortcuts
+  - New snippet: `Ctrl/Cmd + Enter` in content, `Enter` in single-line inputs
+  - Edit form: `Enter` save (single-line), `Ctrl/Cmd + Enter` save (content), `Esc` cancel
 
-## Future Enhancements
+## Data Model
 
-- Further tag categorization and management.
-- Advanced text formatting and rich text editing.
-- Better local organization options (saved views, local-only settings).
+Stored under key `snippets` in `chrome.storage.local`.
+
+```jsonc
+{
+  "id": "id-<unique>",
+  "title": "string",
+  "content": "string",
+  "tags": [{ "name": "string", "category": "string" }],
+  "favorite": false,
+  "createdAt": 1730000000000,
+  "updatedAt": 1730000000000
+}
+```
+
+Compatibility rules:
+
+- Existing data must remain readable
+- Import/edit updates `updatedAt`
+- Create sets `createdAt` and `updatedAt`
+- Unknown fields should be preserved during merge/import operations
+
+## Install (No Build Tooling)
+
+1. Open `chrome://extensions`
+2. Enable Developer mode
+3. Click `Load unpacked`
+4. Select this repository root
+5. Open the extension popup from the toolbar
+
+## Manual QA (Minimum)
+
+1. Add/edit/delete snippets
+2. Confirm sort and search behavior
+3. Toggle favorites and tag filters
+4. Export JSON, clear storage, import JSON back
+5. Confirm data persists after extension reload and browser restart
+
+## Product Direction
+
+A deeper functional review and roadmap are documented in `PRODUCT_REVIEW.md`.
+Short version:
+
+- Keep Textorium popup-only and local-first
+- Improve retrieval quality (tags/filtering/saved views)
+- Improve reliability and accessibility before adding complex features
+
+## Development Workflow
+
+Branching and commit policy are documented in `CONTRIBUTING.md`.
+All new development should use a dedicated branch and merge via PR.
 
 ## License
 
