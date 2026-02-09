@@ -38,12 +38,13 @@
     }
     html,
     body {
+      width: 100%;
+      max-width: 100%;
       overflow-x: hidden;
     }
     body {
       margin: 0;
-      width: min(380px, calc(100vw - 24px));
-      max-width: 380px;
+      width: auto;
       padding: 12px;
       max-height: 600px;
       overflow-y: auto;
@@ -65,6 +66,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      flex-wrap: wrap;
       gap: 8px;
       padding: 10px;
       border: 1px solid var(--line);
@@ -91,6 +93,8 @@
       display: flex;
       gap: 6px;
       align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
     }
     .section {
       border: 1px solid var(--line);
@@ -141,6 +145,7 @@
     }
     input, textarea, select, button {
       width: 100%;
+      min-width: 0;
       font: inherit;
       border-radius: 9px;
       border: 1px solid var(--line);
@@ -256,6 +261,19 @@
       }
       .toolbar {
         width: 100%;
+        justify-content: flex-start;
+      }
+    }
+    @media (max-width: 240px) {
+      body {
+        padding: 8px;
+      }
+      .topbar,
+      .section {
+        padding: 8px;
+      }
+      .brand small {
+        display: none;
       }
     }
   </style>
@@ -268,11 +286,11 @@
         <small data-i18n-text="header.localOnly">LOCAL ONLY</small>
       </div>
       <div class="toolbar">
-        <select id="languageSelect" data-aria-key="aria.language" style="width:auto; min-width: 84px;">
+        <select id="languageSelect" data-aria-key="aria.language" style="width:auto;">
           <option value="ja">日本語</option>
           <option value="en">EN</option>
         </select>
-        <button id="themeToggleBtn" class="btn-ghost" data-aria-key="aria.themeToggle" style="width:auto; min-width:40px;">🌙</button>
+        <button id="themeToggleBtn" class="btn-ghost" data-aria-key="aria.themeToggle" style="width:auto;">🌙</button>
       </div>
     </header>
 
