@@ -38,13 +38,13 @@
     }
     html,
     body {
-      width: 100%;
-      max-width: 100%;
+      width: 400px;
+      min-width: 400px;
+      max-width: 400px;
       overflow-x: hidden;
     }
     body {
       margin: 0;
-      width: auto;
       padding: 12px;
       max-height: 600px;
       overflow-y: auto;
@@ -254,27 +254,13 @@
     .hidden {
       display: none !important;
     }
-    @media (max-width: 430px) {
-      .grid.two,
-      .inline-actions {
-        grid-template-columns: 1fr;
-      }
-      .toolbar {
-        width: 100%;
-        justify-content: flex-start;
-      }
+    .grid.two,
+    .inline-actions {
+      grid-template-columns: 1fr;
     }
-    @media (max-width: 240px) {
-      body {
-        padding: 8px;
-      }
-      .topbar,
-      .section {
-        padding: 8px;
-      }
-      .brand small {
-        display: none;
-      }
+    .toolbar {
+      width: 100%;
+      justify-content: flex-start;
     }
   </style>
 </head>
