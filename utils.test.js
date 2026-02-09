@@ -121,3 +121,72 @@ test('mergeSnippets preserves unknown fields from both snippets', () => {
   assert.deepStrictEqual(merged.customB, ['x', 'y']);
   assert.strictEqual(merged.title, 'B', 'Newer snippet fields should still win conflicts');
 });
+
+test('mergeSnippets keeps the first argument id even if second id differs', () => {
+  const merged = mergeSnippets(
+    { id: 'id-a', title: 'A', content: 'A', createdAt: 10, updatedAt: 10 },
+    { id: 'id-b', title: 'B', content: 'B', createdAt: 20, updatedAt: 20 },
+    30
+  );
+
+  assert.strictEqual(merged.id, 'id-a');
+  assert.strictEqual(merged.title, 'B', 'Field conflicts should still prefer the newer snippet');
+});
+
+test('mergeSnippets treats equal updatedAt as preferring second snippet fields', () => {
+  const merged = mergeSnippets(
+    { id: 'id-1', title: 'From A', content: 'A', createdAt: 10, updatedAt: 1000 },
+    { id: 'id-1', title: 'From B', content: 'B', createdAt: 20, updatedAt: 1000 },
+    2000
+  );
+
+  assert.strictEqual(merged.title, 'From B');
+  assert.strictEqual(merged.content, 'B');
+});
+
+test('mergeSnippets normalizes tags and drops invalid tag entries', () => {
+  const merged = mergeSnippets(
+    {
+      id: 'id-1',
+      title: 'A',
+      content: 'A',
+      createdAt: 100,
+      updatedAt: 100,
+      tags: [
+        { name: ' Work ', category: '  ' },
+        { name: '', category: 'bad' },
+        null
+      ]
+    },
+    {
+      id: 'id-1',
+      title: 'B',
+      content: 'B',
+      createdAt: 200,
+      updatedAt: 200,
+      tags: [
+        { name: 'work', category: 'general' },
+        { name: 'Meet', category: 'Team' }
+      ]
+    },
+    300
+  );
+
+  assert.deepStrictEqual(merged.tags, [
+    { name: 'Work', category: 'general' },
+    { name: 'Meet', category: 'Team' }
+  ]);
+});
+
+test('mergeSnippets falls back to current time when updatedAt override is invalid', () => {
+  const before = Date.now();
+  const merged = mergeSnippets(
+    { id: 'id-1', title: 'A', content: 'A', createdAt: 50, updatedAt: 10 },
+    { id: 'id-1', title: 'B', content: 'B', updatedAt: 20 },
+    null
+  );
+  const after = Date.now();
+
+  assert.ok(merged.updatedAt >= before && merged.updatedAt <= after);
+  assert.strictEqual(merged.createdAt, 50, 'Missing createdAt on one side should keep the existing timestamp');
+});
