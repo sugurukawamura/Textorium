@@ -22,11 +22,13 @@ The core design is:
 
 - Create, edit, delete snippets
 - Favorite toggle
+- Japanese/English language switch (saved in local settings)
 - Search by title, content, and tags
 - Filter by tag and favorites
 - Sort by created/updated/title/favorite
 - Copy snippet content to clipboard
 - Export/import JSON with validation and merge-by-id behavior
+- Light, compact popup UI with theme toggle (light/dark)
 - Keyboard shortcuts
   - New snippet: `Ctrl/Cmd + Enter` in content, `Enter` in single-line inputs
   - Edit form: `Enter` save (single-line), `Ctrl/Cmd + Enter` save (content), `Esc` cancel
@@ -68,6 +70,14 @@ Compatibility rules:
 3. Click `Load unpacked`
 4. Select this repository root
 5. Open the extension popup from the toolbar
+
+## Quick Usage
+
+1. Choose language (`日本語` / `EN`) from the header.
+2. Add title/content and optional tag info, then save.
+3. Use search + tag + favorites toggle together to narrow results.
+4. Use sort controls to reorder by date/title/favorite.
+5. Export for backup and import JSON to restore.
 
 ## Manual QA (Minimum)
 

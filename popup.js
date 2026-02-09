@@ -1,14 +1,15 @@
 // popup.js
 
 /**
- * Handles UI interactions, snippet storage, search/filter, export/import,
- * and favorites functionality for Textorium.
+ * Popup UI controller for Textorium.
+ * Keeps chrome/storage/DOM concerns here and delegates pure logic to snippet-domain.js.
  */
 
 const titleInput = document.getElementById("title");
 const tagNameInput = document.getElementById("tagName");
 const tagCategoryInput = document.getElementById("tagCategory");
 const contentInput = document.getElementById("content");
+const languageSelect = document.getElementById("languageSelect");
 
 const saveSnippetBtn = document.getElementById("saveSnippetBtn");
 const searchInput = document.getElementById("searchInput");
@@ -28,47 +29,300 @@ const snippetList = document.getElementById("snippetList");
 const themeToggleBtn = document.getElementById("themeToggleBtn");
 const snippetDomain = window.SnippetDomain;
 
-// Theme logic
-chrome.storage.local.get(["settings"], (result) => {
-  if (chrome.runtime.lastError) {
-    showError("Failed to load settings.");
-    return;
-  }
-  const settings = result.settings || {};
-  if (settings.theme === "dark") {
-    document.body.classList.add("dark-mode");
-    themeToggleBtn.textContent = "☀️";
-  }
-});
+const SETTINGS_KEY = "settings";
+const STATUS_DISPLAY_MS = 2500;
 
-themeToggleBtn.addEventListener("click", () => {
-  document.body.classList.toggle("dark-mode");
-  const isDark = document.body.classList.contains("dark-mode");
-  themeToggleBtn.textContent = isDark ? "☀️" : "🌙";
-
-  chrome.storage.local.get(["settings"], (result) => {
-    if (chrome.runtime.lastError) {
-      showError("Failed to load settings.");
-      return;
+const I18N = {
+  ja: {
+    header: {
+      localOnly: "LOCAL ONLY"
+    },
+    section: {
+      add: "新規スニペット",
+      search: "検索とフィルタ",
+      sort: "並び替え",
+      list: "スニペット一覧",
+      transfer: "バックアップ/復元"
+    },
+    field: {
+      title: "タイトル",
+      tagName: "タグ名",
+      tagCategory: "カテゴリ",
+      content: "本文",
+      import: "JSONをインポート"
+    },
+    placeholder: {
+      title: "タイトルを入力",
+      tagName: "例: meeting",
+      tagCategory: "例: work",
+      content: "本文を入力",
+      search: "タイトル・本文・タグで検索"
+    },
+    action: {
+      saveSnippet: "保存",
+      search: "検索",
+      clearSearch: "検索クリア",
+      clearFilter: "フィルタをリセット",
+      applySort: "適用",
+      export: "エクスポート",
+      favoritesOnlyOff: "お気に入り: OFF",
+      favoritesOnlyOn: "お気に入り: ON",
+      copy: "コピー",
+      edit: "編集",
+      delete: "削除",
+      saveChanges: "変更を保存",
+      cancel: "キャンセル",
+      readMore: "続きを読む",
+      showLess: "折りたたむ"
+    },
+    filter: {
+      allTags: "すべてのタグ"
+    },
+    sort: {
+      createdAt: "作成日",
+      updatedAt: "更新日",
+      title: "タイトル",
+      favorite: "お気に入り優先",
+      dirDesc: "↓ 新しい順",
+      dirAsc: "↑ 古い順"
+    },
+    status: {
+      saved: "保存しました。",
+      updated: "更新しました。",
+      deleted: "削除しました。",
+      copied: "クリップボードにコピーしました。",
+      exported: "エクスポートしました。",
+      importFinished: "インポート完了: 追加 {added} / 更新 {updated} / 無効 {invalid}",
+      favoriteAdded: "お気に入りに追加しました。",
+      favoriteRemoved: "お気に入りを解除しました。"
+    },
+    empty: {
+      noSnippets: "スニペットがありません。"
+    },
+    confirm: {
+      delete: "このスニペットを削除しますか？"
+    },
+    error: {
+      requiredTitleContent: "タイトルと本文は必須です。",
+      loadSnippets: "スニペットの読み込みに失敗しました。",
+      saveSnippets: "スニペットの保存に失敗しました。",
+      snippetNotFound: "スニペットが見つかりません。",
+      importInvalid: "インポートに失敗しました。JSON形式を確認してください。",
+      importRead: "インポートファイルの読み込みに失敗しました。",
+      copyFailed: "コピーに失敗しました。",
+      loadSettings: "設定の読み込みに失敗しました。",
+      saveSettings: "設定の保存に失敗しました。",
+      loadDomain: "ドメインロジックの読み込みに失敗しました。"
+    },
+    aria: {
+      language: "言語",
+      themeToggle: "テーマ切替",
+      title: "タイトル",
+      tagName: "タグ名",
+      tagCategory: "タグカテゴリ",
+      content: "本文",
+      saveSnippet: "保存",
+      search: "検索",
+      searchButton: "検索実行",
+      clearSearch: "検索クリア",
+      filterTag: "タグで絞り込み",
+      favoritesOnly: "お気に入りのみ切替",
+      clearFilter: "フィルタをリセット",
+      sortBy: "並び替え条件",
+      sortDirection: "並び替え順",
+      applySort: "並び替え適用",
+      export: "エクスポート",
+      import: "インポート",
+      toggleFavorite: "お気に入り切替",
+      copySnippet: "スニペットをコピー",
+      editSnippet: "スニペットを編集",
+      deleteSnippet: "スニペットを削除",
+      editTitle: "タイトルを編集",
+      editTagName: "タグ名を編集",
+      editTagCategory: "タグカテゴリを編集",
+      editContent: "本文を編集",
+      saveChanges: "変更を保存",
+      cancelEditing: "編集をキャンセル"
     }
-    const settings = result.settings || {};
-    settings.theme = isDark ? "dark" : "light";
-    chrome.storage.local.set({ settings }, () => {
-      if (chrome.runtime.lastError) {
-        showError("Failed to save settings.");
-      }
-    });
-  });
-});
+  },
+  en: {
+    header: {
+      localOnly: "LOCAL ONLY"
+    },
+    section: {
+      add: "New Snippet",
+      search: "Search & Filter",
+      sort: "Sort",
+      list: "Snippets",
+      transfer: "Backup / Restore"
+    },
+    field: {
+      title: "Title",
+      tagName: "Tag Name",
+      tagCategory: "Category",
+      content: "Content",
+      import: "Import JSON"
+    },
+    placeholder: {
+      title: "Enter title",
+      tagName: "e.g., meeting",
+      tagCategory: "e.g., work",
+      content: "Enter content",
+      search: "Search title, content, or tags"
+    },
+    action: {
+      saveSnippet: "Save",
+      search: "Search",
+      clearSearch: "Clear Search",
+      clearFilter: "Reset Filters",
+      applySort: "Apply",
+      export: "Export",
+      favoritesOnlyOff: "Favorites: OFF",
+      favoritesOnlyOn: "Favorites: ON",
+      copy: "Copy",
+      edit: "Edit",
+      delete: "Delete",
+      saveChanges: "Save Changes",
+      cancel: "Cancel",
+      readMore: "Read More",
+      showLess: "Show Less"
+    },
+    filter: {
+      allTags: "All Tags"
+    },
+    sort: {
+      createdAt: "Created",
+      updatedAt: "Updated",
+      title: "Title",
+      favorite: "Favorites First",
+      dirDesc: "↓ Desc",
+      dirAsc: "↑ Asc"
+    },
+    status: {
+      saved: "Snippet saved.",
+      updated: "Snippet updated.",
+      deleted: "Snippet deleted.",
+      copied: "Copied to clipboard.",
+      exported: "Snippets exported.",
+      importFinished: "Import finished: Added {added} / Updated {updated} / Invalid {invalid}",
+      favoriteAdded: "Added to favorites.",
+      favoriteRemoved: "Removed from favorites."
+    },
+    empty: {
+      noSnippets: "No snippets found."
+    },
+    confirm: {
+      delete: "Delete this snippet?"
+    },
+    error: {
+      requiredTitleContent: "Title and content are required.",
+      loadSnippets: "Failed to load snippets.",
+      saveSnippets: "Failed to save snippets.",
+      snippetNotFound: "Snippet not found.",
+      importInvalid: "Failed to import snippets. Check JSON format.",
+      importRead: "Failed to read import file.",
+      copyFailed: "Failed to copy to clipboard.",
+      loadSettings: "Failed to load settings.",
+      saveSettings: "Failed to save settings.",
+      loadDomain: "Failed to load snippet domain logic."
+    },
+    aria: {
+      language: "Language",
+      themeToggle: "Toggle theme",
+      title: "Title",
+      tagName: "Tag name",
+      tagCategory: "Tag category",
+      content: "Content",
+      saveSnippet: "Save snippet",
+      search: "Search",
+      searchButton: "Run search",
+      clearSearch: "Clear search",
+      filterTag: "Filter by tag",
+      favoritesOnly: "Toggle favorites only",
+      clearFilter: "Reset filters",
+      sortBy: "Sort by",
+      sortDirection: "Sort direction",
+      applySort: "Apply sort",
+      export: "Export snippets",
+      import: "Import snippets",
+      toggleFavorite: "Toggle favorite",
+      copySnippet: "Copy snippet",
+      editSnippet: "Edit snippet",
+      deleteSnippet: "Delete snippet",
+      editTitle: "Edit title",
+      editTagName: "Edit tag name",
+      editTagCategory: "Edit tag category",
+      editContent: "Edit content",
+      saveChanges: "Save changes",
+      cancelEditing: "Cancel editing"
+    }
+  }
+};
 
-// Global sort state
+// Global UI state
 let currentSortBy = "createdAt";
 let isDescending = true;
 let currentSearchTerm = "";
 let isFavoritesOnly = false;
 let openEditContainer = null;
+let currentLanguage = detectDefaultLanguage();
+let settingsState = {};
 
-const STATUS_DISPLAY_MS = 2500;
+function detectDefaultLanguage() {
+  const locale = (navigator.language || "en").toLowerCase();
+  return locale.startsWith("ja") ? "ja" : "en";
+}
+
+function getLanguageTable() {
+  return I18N[currentLanguage] || I18N.en;
+}
+
+function t(key, values = {}) {
+  const table = getLanguageTable();
+  const value = key.split(".").reduce((acc, part) => (acc ? acc[part] : undefined), table);
+  const template = typeof value === "string" ? value : key;
+  return template.replace(/\{(\w+)\}/g, (_, token) => String(values[token] ?? ""));
+}
+
+function applyStaticLocalization() {
+  document.documentElement.lang = currentLanguage;
+
+  document.querySelectorAll("[data-i18n-text]").forEach((element) => {
+    const key = element.getAttribute("data-i18n-text");
+    element.textContent = t(key);
+  });
+
+  document.querySelectorAll("[data-i18n-placeholder]").forEach((element) => {
+    const key = element.getAttribute("data-i18n-placeholder");
+    element.placeholder = t(key);
+  });
+
+  document.querySelectorAll("[data-aria-key]").forEach((element) => {
+    const key = element.getAttribute("data-aria-key");
+    element.setAttribute("aria-label", t(key));
+  });
+
+  if (filterTagsSelect.options.length > 0) {
+    filterTagsSelect.options[0].textContent = t("filter.allTags");
+  }
+  updateSortDirectionLabel();
+  updateFavoritesFilterLabel();
+  updateThemeToggleLabel();
+}
+
+function updateSortDirectionLabel() {
+  sortDirectionBtn.textContent = isDescending ? t("sort.dirDesc") : t("sort.dirAsc");
+}
+
+function updateFavoritesFilterLabel() {
+  filterFavoritesBtn.textContent = isFavoritesOnly ? t("action.favoritesOnlyOn") : t("action.favoritesOnlyOff");
+  filterFavoritesBtn.setAttribute("aria-pressed", isFavoritesOnly ? "true" : "false");
+}
+
+function updateThemeToggleLabel() {
+  const isDark = document.body.classList.contains("dark-mode");
+  themeToggleBtn.textContent = isDark ? "☀️" : "🌙";
+}
 
 function showStatus(message, type = "info") {
   if (!statusMessage) return;
@@ -81,8 +335,58 @@ function showStatus(message, type = "info") {
   }, STATUS_DISPLAY_MS);
 }
 
-function showError(message) {
-  showStatus(message, "error");
+function showStatusKey(key, values = {}) {
+  showStatus(t(key, values), "info");
+}
+
+function showErrorKey(key, values = {}) {
+  showStatus(t(key, values), "error");
+}
+
+async function loadSettings() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get([SETTINGS_KEY], (result) => {
+      if (chrome.runtime.lastError) {
+        showErrorKey("error.loadSettings");
+        resolve({});
+        return;
+      }
+      resolve(result[SETTINGS_KEY] || {});
+    });
+  });
+}
+
+async function saveSettings() {
+  return new Promise((resolve) => {
+    chrome.storage.local.set({ [SETTINGS_KEY]: settingsState }, () => {
+      if (chrome.runtime.lastError) {
+        showErrorKey("error.saveSettings");
+        resolve(false);
+        return;
+      }
+      resolve(true);
+    });
+  });
+}
+
+async function setSetting(key, value) {
+  settingsState[key] = value;
+  await saveSettings();
+}
+
+async function applyInitialSettings() {
+  settingsState = await loadSettings();
+
+  if (settingsState.theme === "dark") {
+    document.body.classList.add("dark-mode");
+  }
+
+  const savedLanguage = settingsState.language;
+  if (savedLanguage === "ja" || savedLanguage === "en") {
+    currentLanguage = savedLanguage;
+  }
+  languageSelect.value = currentLanguage;
+  applyStaticLocalization();
 }
 
 // Save new snippet
@@ -93,7 +397,7 @@ saveSnippetBtn.addEventListener("click", async () => {
   const tagCategory = tagCategoryInput.value.trim();
 
   if (!title || !content) {
-    showError("Title and content are required.");
+    showErrorKey("error.requiredTitleContent");
     return;
   }
 
@@ -114,18 +418,18 @@ saveSnippetBtn.addEventListener("click", async () => {
 
   const storedSnippets = await getStoredSnippets();
   if (!storedSnippets) return;
+
   storedSnippets.push(newSnippet);
   const saved = await setStoredSnippets(storedSnippets);
   if (!saved) return;
 
-  // Clear input fields
   titleInput.value = "";
   tagNameInput.value = "";
   tagCategoryInput.value = "";
   contentInput.value = "";
 
   await refreshCurrentView();
-  showStatus("Snippet saved.");
+  showStatusKey("status.saved");
 });
 
 contentInput.addEventListener("keydown", (event) => {
@@ -144,13 +448,11 @@ for (const input of [titleInput, tagNameInput, tagCategoryInput]) {
   });
 }
 
-// Search functionality (on button click)
 searchBtn.addEventListener("click", async () => {
   currentSearchTerm = searchInput.value.trim().toLowerCase();
   await refreshCurrentView();
 });
 
-// Real-time search on input
 searchInput.addEventListener("input", async () => {
   currentSearchTerm = searchInput.value.trim().toLowerCase();
   await refreshCurrentView();
@@ -164,61 +466,56 @@ searchInput.addEventListener("keydown", async (event) => {
   }
 });
 
-// Clear search input and show all
 clearSearchBtn.addEventListener("click", async () => {
   searchInput.value = "";
   currentSearchTerm = "";
   await refreshCurrentView();
 });
 
-// Filter favorites only
 filterFavoritesBtn.addEventListener("click", async () => {
-  isFavoritesOnly = true;
+  isFavoritesOnly = !isFavoritesOnly;
+  updateFavoritesFilterLabel();
   await refreshCurrentView();
 });
 
-// Filter by tag
 filterTagsSelect.addEventListener("change", async () => {
   await refreshCurrentView();
 });
 
-// Clear favorite filter
 clearFilterBtn.addEventListener("click", async () => {
   isFavoritesOnly = false;
   filterTagsSelect.value = "";
+  updateFavoritesFilterLabel();
   await refreshCurrentView();
 });
 
-// Sort direction toggle
 sortDirectionBtn.addEventListener("click", () => {
   isDescending = !isDescending;
-  sortDirectionBtn.textContent = isDescending ? "↓ Desc" : "↑ Asc";
+  updateSortDirectionLabel();
 });
 
-// Apply sort
 applySortBtn.addEventListener("click", async () => {
   currentSortBy = sortBySelect.value;
   await refreshCurrentView();
 });
 
-// Export snippets as JSON
 exportBtn.addEventListener("click", async () => {
   const snippets = await getStoredSnippets();
   if (!snippets) return;
+
   const dataStr = JSON.stringify(snippets, null, 2);
   const blob = new Blob([dataStr], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
   const now = new Date();
-  const ts = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+  const ts = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}-${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
   a.download = `snippets_${ts}.json`;
   a.click();
   URL.revokeObjectURL(url);
-  showStatus("Snippets exported.");
+  showStatusKey("status.exported");
 });
 
-// Import snippets from JSON file (validated + de-dupe + merge policy)
 importInput.addEventListener("change", (event) => {
   const file = event.target.files[0];
   if (!file) return;
@@ -231,64 +528,77 @@ importInput.addEventListener("change", (event) => {
 
       const existing = await getStoredSnippets();
       if (!existing) return;
-      const byId = new Map(existing.map(s => [s.id, s]));
+      const byId = new Map(existing.map((snippet) => [snippet.id, snippet]));
 
-      let added = 0, updated = 0, invalid = 0;
-
+      let added = 0;
+      let updated = 0;
+      let invalid = 0;
       const now = Date.now();
-      for (const s of parsed) {
-        if (!snippetDomain.isValidImportedSnippet(s)) { invalid++; continue; }
-        const normalized = snippetDomain.normalizeImportedSnippet(s, now);
-        const cur = byId.get(s.id);
-        if (!cur) {
-          byId.set(s.id, normalized);
-          added++;
-        } else {
-          const merged = mergeSnippets(cur, normalized, now);
-          if (JSON.stringify(cur) !== JSON.stringify(merged)) updated++;
-          byId.set(s.id, merged);
+
+      for (const snippet of parsed) {
+        if (!snippetDomain.isValidImportedSnippet(snippet)) {
+          invalid++;
+          continue;
         }
+        const normalized = snippetDomain.normalizeImportedSnippet(snippet, now);
+        const current = byId.get(snippet.id);
+        if (!current) {
+          byId.set(snippet.id, normalized);
+          added++;
+          continue;
+        }
+        const merged = mergeSnippets(current, normalized, now);
+        if (JSON.stringify(current) !== JSON.stringify(merged)) {
+          updated++;
+        }
+        byId.set(snippet.id, merged);
       }
 
       const mergedAll = Array.from(byId.values());
       const saved = await setStoredSnippets(mergedAll);
       if (!saved) return;
+
       await refreshCurrentView();
-      showStatus(`Import finished. Added: ${added}, Updated: ${updated}, Skipped invalid: ${invalid}.`);
+      showStatusKey("status.importFinished", { added, updated, invalid });
     } catch (error) {
-      showError("Failed to import snippets. Invalid file format.");
+      showErrorKey("error.importInvalid");
     }
   };
+
   reader.onerror = () => {
-    showError("Failed to read import file.");
+    showErrorKey("error.importRead");
   };
+
   reader.readAsText(file);
   importInput.value = "";
 });
 
-/**
- * Sort snippets based on current sort criteria and direction
- */
+themeToggleBtn.addEventListener("click", async () => {
+  document.body.classList.toggle("dark-mode");
+  updateThemeToggleLabel();
+  const theme = document.body.classList.contains("dark-mode") ? "dark" : "light";
+  await setSetting("theme", theme);
+});
+
+languageSelect.addEventListener("change", async () => {
+  currentLanguage = languageSelect.value === "en" ? "en" : "ja";
+  await setSetting("language", currentLanguage);
+  applyStaticLocalization();
+  await refreshCurrentView();
+});
+
 function sortSnippets(snippets) {
   return snippetDomain.sortSnippets(snippets, currentSortBy, isDescending);
 }
 
-/**
- * Display snippets with current sort applied
- */
 function displaySnippetsWithSort(snippets) {
-  const sortedSnippets = sortSnippets(snippets);
-  displaySnippets(sortedSnippets);
+  displaySnippets(sortSnippets(snippets));
 }
 
-/**
- * Update the tag filter dropdown options based on available snippets.
- */
 function updateTagFilterOptions(snippets) {
   const currentSelection = filterTagsSelect.value;
   const options = snippetDomain.buildTagFilterOptions(snippets);
 
-  // Clear existing options except the first "All Tags"
   while (filterTagsSelect.options.length > 1) {
     filterTagsSelect.remove(1);
   }
@@ -300,17 +610,17 @@ function updateTagFilterOptions(snippets) {
     filterTagsSelect.appendChild(option);
   });
 
-  // Restore selection if valid
   if (options.some((option) => option.value === currentSelection)) {
     filterTagsSelect.value = currentSelection;
   } else {
     filterTagsSelect.value = "";
   }
+
+  if (filterTagsSelect.options.length > 0) {
+    filterTagsSelect.options[0].textContent = t("filter.allTags");
+  }
 }
 
-/**
- * Refresh the current view with appropriate filters and sorting
- */
 async function refreshCurrentView() {
   const storedSnippets = await getStoredSnippets();
   if (!storedSnippets) return;
@@ -326,14 +636,11 @@ async function refreshCurrentView() {
   displaySnippetsWithSort(filteredSnippets);
 }
 
-/**
- * Retrieve stored snippets from chrome.storage.local.
- */
 async function getStoredSnippets() {
   return new Promise((resolve) => {
     chrome.storage.local.get(["snippets"], (result) => {
       if (chrome.runtime.lastError) {
-        showError("Failed to load snippets.");
+        showErrorKey("error.loadSnippets");
         resolve(null);
         return;
       }
@@ -342,14 +649,11 @@ async function getStoredSnippets() {
   });
 }
 
-/**
- * Save updated snippets array to chrome.storage.local.
- */
 async function setStoredSnippets(snippets) {
   return new Promise((resolve) => {
     chrome.storage.local.set({ snippets }, () => {
       if (chrome.runtime.lastError) {
-        showError("Failed to save snippets.");
+        showErrorKey("error.saveSnippets");
         resolve(false);
         return;
       }
@@ -361,11 +665,13 @@ async function setStoredSnippets(snippets) {
 async function updateSnippetInStorage(updatedSnippet) {
   const storedSnippets = await getStoredSnippets();
   if (!storedSnippets) return false;
-  const index = storedSnippets.findIndex((s) => s.id === updatedSnippet.id);
+
+  const index = storedSnippets.findIndex((snippet) => snippet.id === updatedSnippet.id);
   if (index === -1) {
-    showError("Snippet not found.");
+    showErrorKey("error.snippetNotFound");
     return false;
   }
+
   storedSnippets[index] = updatedSnippet;
   return setStoredSnippets(storedSnippets);
 }
@@ -373,7 +679,7 @@ async function updateSnippetInStorage(updatedSnippet) {
 async function deleteSnippetFromStorage(snippetId) {
   const storedSnippets = await getStoredSnippets();
   if (!storedSnippets) return false;
-  const updatedSnippets = storedSnippets.filter((s) => s.id !== snippetId);
+  const updatedSnippets = storedSnippets.filter((snippet) => snippet.id !== snippetId);
   return setStoredSnippets(updatedSnippets);
 }
 
@@ -381,24 +687,20 @@ function renderSnippetItem(snippet) {
   const container = document.createElement("div");
   container.className = "snippet-item";
 
-  const favoriteBtn = createSnippetFavoriteBtn(snippet);
-  container.appendChild(favoriteBtn);
+  const head = document.createElement("div");
+  head.className = "snippet-head";
 
   const titleEl = document.createElement("h3");
   titleEl.textContent = typeof snippet.title === "string" ? snippet.title : "";
-  container.appendChild(titleEl);
+  head.appendChild(titleEl);
+  head.appendChild(createSnippetFavoriteBtn(snippet));
+  container.appendChild(head);
 
-  const tagContainer = createSnippetTags(snippet);
-  container.appendChild(tagContainer);
-
-  const contentEl = createSnippetContent(snippet);
-  container.appendChild(contentEl);
+  container.appendChild(createSnippetTags(snippet));
+  container.appendChild(createSnippetContent(snippet));
 
   const editContainer = createEditForm(snippet);
-
-  const actions = createSnippetActions(snippet, editContainer);
-  container.appendChild(actions);
-
+  container.appendChild(createSnippetActions(snippet, editContainer));
   container.appendChild(editContainer);
 
   return container;
@@ -407,8 +709,9 @@ function renderSnippetItem(snippet) {
 function createSnippetFavoriteBtn(snippet) {
   const favoriteBtn = document.createElement("button");
   favoriteBtn.textContent = snippet.favorite ? "★" : "☆";
-  favoriteBtn.style.marginRight = "8px";
-  favoriteBtn.setAttribute("aria-label", "Toggle favorite");
+  favoriteBtn.style.width = "auto";
+  favoriteBtn.style.minWidth = "42px";
+  favoriteBtn.setAttribute("aria-label", t("aria.toggleFavorite"));
   favoriteBtn.addEventListener("click", async () => {
     const updatedSnippet = {
       ...snippet,
@@ -417,8 +720,8 @@ function createSnippetFavoriteBtn(snippet) {
     };
     const saved = await updateSnippetInStorage(updatedSnippet);
     if (!saved) return;
-    showStatus(updatedSnippet.favorite ? "Added to favorites." : "Removed from favorites.");
-    refreshCurrentView();
+    showStatusKey(updatedSnippet.favorite ? "status.favoriteAdded" : "status.favoriteRemoved");
+    await refreshCurrentView();
   });
   return favoriteBtn;
 }
@@ -426,14 +729,12 @@ function createSnippetFavoriteBtn(snippet) {
 function createSnippetTags(snippet) {
   const tagContainer = document.createElement("div");
   const tags = snippetDomain.getSnippetTags(snippet);
-  if (tags.length > 0) {
-    tags.forEach((t) => {
-      const tagEl = document.createElement("span");
-      tagEl.className = "tag";
-      tagEl.textContent = `${t.name} (${t.category || "general"})`;
-      tagContainer.appendChild(tagEl);
-    });
-  }
+  tags.forEach((tag) => {
+    const tagEl = document.createElement("span");
+    tagEl.className = "tag";
+    tagEl.textContent = `${tag.name} (${tag.category || "general"})`;
+    tagContainer.appendChild(tagEl);
+  });
   return tagContainer;
 }
 
@@ -448,20 +749,17 @@ function createSnippetContent(snippet) {
 
   const lines = (contentText.match(/\n/g) || []).length;
   const isLong = contentText.length > 200 || lines > 3;
+  if (!isLong) return container;
 
-  if (isLong) {
-    contentEl.classList.add("collapsed");
-
-    const toggleBtn = document.createElement("button");
-    toggleBtn.className = "read-more-btn";
-    toggleBtn.textContent = "Read More";
-    toggleBtn.addEventListener("click", () => {
-      contentEl.classList.toggle("collapsed");
-      toggleBtn.textContent = contentEl.classList.contains("collapsed") ? "Read More" : "Show Less";
-    });
-    container.appendChild(toggleBtn);
-  }
-
+  contentEl.classList.add("collapsed");
+  const toggleBtn = document.createElement("button");
+  toggleBtn.className = "read-more-btn";
+  toggleBtn.textContent = t("action.readMore");
+  toggleBtn.addEventListener("click", () => {
+    contentEl.classList.toggle("collapsed");
+    toggleBtn.textContent = contentEl.classList.contains("collapsed") ? t("action.readMore") : t("action.showLess");
+  });
+  container.appendChild(toggleBtn);
   return container;
 }
 
@@ -469,24 +767,22 @@ function createSnippetActions(snippet, editContainer) {
   const actions = document.createElement("div");
   actions.className = "snippet-actions";
 
-  // Copy button
   const copyBtn = document.createElement("button");
-  copyBtn.textContent = "Copy";
-  copyBtn.setAttribute("aria-label", "Copy snippet");
+  copyBtn.textContent = t("action.copy");
+  copyBtn.setAttribute("aria-label", t("aria.copySnippet"));
   copyBtn.addEventListener("click", async () => {
     try {
       const contentText = typeof snippet.content === "string" ? snippet.content : String(snippet.content ?? "");
       await navigator.clipboard.writeText(contentText);
-      showStatus("Copied to clipboard.");
-    } catch (e) {
-      showError("Failed to copy to clipboard.");
+      showStatusKey("status.copied");
+    } catch (error) {
+      showErrorKey("error.copyFailed");
     }
   });
 
-  // Edit button
   const editBtn = document.createElement("button");
-  editBtn.textContent = "Edit";
-  editBtn.setAttribute("aria-label", "Edit snippet");
+  editBtn.textContent = t("action.edit");
+  editBtn.setAttribute("aria-label", t("aria.editSnippet"));
   editBtn.addEventListener("click", () => {
     if (openEditContainer && openEditContainer !== editContainer) {
       openEditContainer.classList.add("hidden");
@@ -495,16 +791,15 @@ function createSnippetActions(snippet, editContainer) {
     openEditContainer = editContainer.classList.contains("hidden") ? null : editContainer;
   });
 
-  // Delete button
   const deleteBtn = document.createElement("button");
-  deleteBtn.textContent = "Delete";
-  deleteBtn.setAttribute("aria-label", "Delete snippet");
+  deleteBtn.textContent = t("action.delete");
+  deleteBtn.setAttribute("aria-label", t("aria.deleteSnippet"));
   deleteBtn.addEventListener("click", async () => {
-    if (!confirm("Delete this snippet?")) return;
+    if (!confirm(t("confirm.delete"))) return;
     const deleted = await deleteSnippetFromStorage(snippet.id);
     if (!deleted) return;
-    showStatus("Snippet deleted.");
-    refreshCurrentView();
+    showStatusKey("status.deleted");
+    await refreshCurrentView();
   });
 
   actions.appendChild(copyBtn);
@@ -520,16 +815,16 @@ function createEditForm(snippet) {
   const editTitleInput = document.createElement("input");
   editTitleInput.type = "text";
   editTitleInput.value = typeof snippet.title === "string" ? snippet.title : "";
-  editTitleInput.setAttribute("aria-label", "Edit title");
-  editTitleInput.placeholder = "Title";
+  editTitleInput.placeholder = t("placeholder.title");
+  editTitleInput.setAttribute("aria-label", t("aria.editTitle"));
 
   const editTagNameInput = document.createElement("input");
-  editTagNameInput.setAttribute("aria-label", "Edit tag name");
-  editTagNameInput.placeholder = "Tag Name";
+  editTagNameInput.placeholder = t("placeholder.tagName");
+  editTagNameInput.setAttribute("aria-label", t("aria.editTagName"));
 
   const editTagCategoryInput = document.createElement("input");
-  editTagCategoryInput.setAttribute("aria-label", "Edit tag category");
-  editTagCategoryInput.placeholder = "Tag Category";
+  editTagCategoryInput.placeholder = t("placeholder.tagCategory");
+  editTagCategoryInput.setAttribute("aria-label", t("aria.editTagCategory"));
 
   const snippetTags = snippetDomain.getSnippetTags(snippet);
   if (snippetTags.length > 0) {
@@ -539,25 +834,22 @@ function createEditForm(snippet) {
 
   const editContentTextarea = document.createElement("textarea");
   editContentTextarea.value = typeof snippet.content === "string" ? snippet.content : "";
-  editContentTextarea.setAttribute("aria-label", "Edit content");
-  editContentTextarea.placeholder = "Content";
+  editContentTextarea.placeholder = t("placeholder.content");
+  editContentTextarea.setAttribute("aria-label", t("aria.editContent"));
 
   const saveChangesBtn = document.createElement("button");
-  saveChangesBtn.textContent = "Save Changes";
-  saveChangesBtn.setAttribute("aria-label", "Save snippet changes");
+  saveChangesBtn.textContent = t("action.saveChanges");
+  saveChangesBtn.setAttribute("aria-label", t("aria.saveChanges"));
   saveChangesBtn.addEventListener("click", async () => {
     const nextTitle = editTitleInput.value.trim();
     const nextContent = editContentTextarea.value.trim();
-
     if (!nextTitle || !nextContent) {
-      showError("Title and content are required.");
+      showErrorKey("error.requiredTitleContent");
       return;
     }
 
     const nextTagName = editTagNameInput.value.trim();
     const nextTagCategory = editTagCategoryInput.value.trim();
-
-    // Preserve other tags
     const otherTags = snippetDomain.getSnippetTags(snippet).slice(1);
     const firstTag = nextTagName ? [{ name: nextTagName, category: nextTagCategory || "general" }] : [];
     const nextTags = [...firstTag, ...otherTags];
@@ -565,14 +857,14 @@ function createEditForm(snippet) {
     const updatedSnippet = {
       ...snippet,
       title: nextTitle,
-      tags: nextTags,
       content: nextContent,
+      tags: nextTags,
       updatedAt: Date.now()
     };
 
     const saved = await updateSnippetInStorage(updatedSnippet);
     if (!saved) return;
-    showStatus("Snippet updated.");
+    showStatusKey("status.updated");
     editContainer.classList.add("hidden");
     if (openEditContainer === editContainer) {
       openEditContainer = null;
@@ -581,8 +873,8 @@ function createEditForm(snippet) {
   });
 
   const cancelChangesBtn = document.createElement("button");
-  cancelChangesBtn.textContent = "Cancel";
-  cancelChangesBtn.setAttribute("aria-label", "Cancel snippet editing");
+  cancelChangesBtn.textContent = t("action.cancel");
+  cancelChangesBtn.setAttribute("aria-label", t("aria.cancelEditing"));
   cancelChangesBtn.addEventListener("click", () => {
     editContainer.classList.add("hidden");
     if (openEditContainer === editContainer) {
@@ -618,49 +910,36 @@ function createEditForm(snippet) {
   editActions.appendChild(cancelChangesBtn);
 
   editContainer.appendChild(editTitleInput);
-  editContainer.appendChild(document.createElement("br"));
   editContainer.appendChild(editTagNameInput);
-  editContainer.appendChild(document.createElement("br"));
   editContainer.appendChild(editTagCategoryInput);
-  editContainer.appendChild(document.createElement("br"));
   editContainer.appendChild(editContentTextarea);
   editContainer.appendChild(editActions);
 
   return editContainer;
 }
 
-/**
- * Display the list of snippets.
- * NOTE: ここでは **再ソートしない**。渡された順序（displaySnippetsWithSortの結果）を尊重。
- */
 function displaySnippets(snippets) {
   snippetList.textContent = "";
 
   if (!snippets || snippets.length === 0) {
     const emptyMessage = document.createElement("p");
-    emptyMessage.textContent = "No snippets found.";
+    emptyMessage.textContent = t("empty.noSnippets");
     snippetList.appendChild(emptyMessage);
     return;
   }
 
-  // Use DocumentFragment to batch DOM insertions and reduce layout thrashing
   const fragment = document.createDocumentFragment();
-  snippets.forEach((snippet) => {
-    fragment.appendChild(renderSnippetItem(snippet));
-  });
+  snippets.forEach((snippet) => fragment.appendChild(renderSnippetItem(snippet)));
   snippetList.appendChild(fragment);
 }
 
-/**
- * Initialize the popup by loading stored snippets.
- */
 async function init() {
   if (!snippetDomain) {
-    showError("Failed to load snippet domain logic.");
+    showErrorKey("error.loadDomain");
     return;
   }
+  await applyInitialSettings();
   await refreshCurrentView();
 }
 
-// Initialize on popup load
 init();
