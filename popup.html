@@ -4,16 +4,61 @@
   <meta charset="UTF-8" />
   <title>Textorium</title>
   <style>
+    :root {
+      --bg-color: #ffffff;
+      --text-color: #000000;
+      --border-color: #ccc;
+      --item-bg: #ffffff;
+      --tag-bg: #efefef;
+      --input-bg: #ffffff;
+      --input-text: #000000;
+      --status-info-bg: #eef5ff;
+      --status-info-text: #1f4b99;
+      --status-error-bg: #fdecea;
+      --status-error-text: #a61c1c;
+      --link-color: #007bff;
+    }
+    body.dark-mode {
+      --bg-color: #222222;
+      --text-color: #eeeeee;
+      --border-color: #444444;
+      --item-bg: #333333;
+      --tag-bg: #555555;
+      --input-bg: #444444;
+      --input-text: #eeeeee;
+      --status-info-bg: #1a3a6e;
+      --status-info-text: #aacbff;
+      --status-error-bg: #6e1a1a;
+      --status-error-text: #ffaaaa;
+      --link-color: #66b3ff;
+    }
     body {
       font-family: Arial, sans-serif;
       margin: 0;
       padding: 10px;
-      width: 400px;  /* 横幅はそのまま */
-      height: 600px; /* たとえば高さ600pxに固定 */
-      overflow-y: auto; /* はみ出したら縦スクロールバーを表示 */
+      width: 400px;
+      height: 600px;
+      overflow-y: auto;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+    }
+    input, textarea, select {
+      background-color: var(--input-bg);
+      color: var(--input-text);
+      border: 1px solid var(--border-color);
+    }
+    button {
+      background-color: var(--input-bg); /* Use input bg for buttons too for simplicity */
+      color: var(--input-text);
+      border: 1px solid var(--border-color);
+      cursor: pointer;
+    }
+    button:hover {
+      opacity: 0.8;
     }
     .snippet-item {
-      border: 1px solid #ccc;
+      border: 1px solid var(--border-color);
+      background-color: var(--item-bg);
       margin-bottom: 8px;
       padding: 8px;
     }
@@ -28,7 +73,7 @@
       display: none;
     }
     .tag {
-      background-color: #efefef;
+      background-color: var(--tag-bg);
       border-radius: 4px;
       padding: 2px 6px;
       margin-right: 4px;
@@ -41,12 +86,12 @@
       font-size: 0.9em;
     }
     .status-message.info {
-      background-color: #eef5ff;
-      color: #1f4b99;
+      background-color: var(--status-info-bg);
+      color: var(--status-info-text);
     }
     .status-message.error {
-      background-color: #fdecea;
-      color: #a61c1c;
+      background-color: var(--status-error-bg);
+      color: var(--status-error-text);
     }
     .snippet-actions {
       margin-top: 6px;
@@ -56,6 +101,44 @@
     }
     .edit-actions {
       margin-top: 6px;
+    }
+    .snippet-content {
+      margin: 0 0 4px 0;
+    }
+    .snippet-content.collapsed {
+      max-height: 4.8em; /* Roughly 3-4 lines */
+      overflow: hidden;
+      mask-image: linear-gradient(180deg, black 60%, transparent 100%);
+      -webkit-mask-image: linear-gradient(180deg, black 60%, transparent 100%);
+    }
+    .read-more-btn {
+      background: none;
+      border: none;
+      color: var(--link-color);
+      cursor: pointer;
+      padding: 0;
+      font-size: 0.9em;
+      margin-bottom: 8px;
+    }
+    .read-more-btn:hover {
+      text-decoration: underline;
+    }
+    .header-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .header-container h2 {
+      margin: 0;
+    }
+    .theme-toggle-btn {
+      border: none;
+      background: transparent;
+      font-size: 1.2em;
+    }
+    .filter-select {
+      max-width: 150px;
     }
     /* Responsive design 
     @media (max-width: 350px) {
@@ -72,7 +155,10 @@
   </style>
 </head>
 <body>
-  <h2>Textorium</h2>
+  <div class="header-container">
+    <h2>Textorium</h2>
+    <button id="themeToggleBtn" aria-label="Toggle dark mode" class="theme-toggle-btn">🌙</button>
+  </div>
   <div id="statusMessage" class="status-message hidden" role="status" aria-live="polite"></div>
 
   <!-- Add New Snippet Form -->
@@ -101,6 +187,9 @@
     <button id="searchBtn" aria-label="Search snippets">Search</button>
     <button id="clearSearchBtn" aria-label="Clear search">Clear</button>
     <br /><br />
+    <select id="filterTags" aria-label="Filter by tag" class="filter-select">
+      <option value="">All Tags</option>
+    </select>
     <button id="filterFavoritesBtn" aria-label="Show favorites only">Show Favorites Only</button>
     <button id="clearFilterBtn" aria-label="Clear filters">Clear Filter</button>
   </div>
