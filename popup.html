@@ -34,6 +34,29 @@
       margin-right: 4px;
       font-size: 0.9em;
     }
+    .status-message {
+      border-radius: 4px;
+      margin: 8px 0;
+      padding: 6px 8px;
+      font-size: 0.9em;
+    }
+    .status-message.info {
+      background-color: #eef5ff;
+      color: #1f4b99;
+    }
+    .status-message.error {
+      background-color: #fdecea;
+      color: #a61c1c;
+    }
+    .snippet-actions {
+      margin-top: 6px;
+    }
+    .snippet-actions button {
+      margin-right: 6px;
+    }
+    .edit-actions {
+      margin-top: 6px;
+    }
     /* Responsive design 
     @media (max-width: 350px) {
       body {
@@ -50,33 +73,36 @@
 </head>
 <body>
   <h2>Textorium</h2>
+  <div id="statusMessage" class="status-message hidden" role="status" aria-live="polite"></div>
 
   <!-- Add New Snippet Form -->
   <div>
     <h4>Add New Snippet</h4>
-    <input type="text" id="title" placeholder="Title" />
+    <label for="title">Title:</label>
+    <input type="text" id="title" placeholder="Title" aria-label="Snippet title" />
     <br /><br />
     <label for="tagName">Tag Name:</label>
-    <input type="text" id="tagName" placeholder="e.g., meeting" />
+    <input type="text" id="tagName" placeholder="e.g., meeting" aria-label="Tag name" />
     <br /><br />
     <label for="tagCategory">Tag Category:</label>
-    <input type="text" id="tagCategory" placeholder="e.g., work" />
+    <input type="text" id="tagCategory" placeholder="e.g., work" aria-label="Tag category" />
     <br /><br />
-    <textarea id="content" placeholder="Enter your snippet text here..." rows="3" cols="30"></textarea>
+    <label for="content">Content:</label>
+    <textarea id="content" placeholder="Enter your snippet text here..." rows="3" cols="30" aria-label="Snippet content"></textarea>
     <br /><br />
-    <button id="saveSnippetBtn">Save Snippet</button>
+    <button id="saveSnippetBtn" aria-label="Save snippet">Save Snippet</button>
   </div>
   <hr />
 
   <!-- Search and Filter -->
   <div>
     <h4>Search / Filter</h4>
-    <input type="text" id="searchInput" placeholder="Search by title or content" />
-    <button id="searchBtn">Search</button>
-    <button id="clearSearchBtn">Clear</button>
+    <input type="text" id="searchInput" placeholder="Search by title or content" aria-label="Search snippets" />
+    <button id="searchBtn" aria-label="Search snippets">Search</button>
+    <button id="clearSearchBtn" aria-label="Clear search">Clear</button>
     <br /><br />
-    <button id="filterFavoritesBtn">Show Favorites Only</button>
-    <button id="clearFilterBtn">Clear Filter</button>
+    <button id="filterFavoritesBtn" aria-label="Show favorites only">Show Favorites Only</button>
+    <button id="clearFilterBtn" aria-label="Clear filters">Clear Filter</button>
   </div>
   <hr />
 
@@ -84,14 +110,14 @@
   <div>
     <h4>Sort</h4>
     <label for="sortBy">Sort by:</label>
-    <select id="sortBy">
+    <select id="sortBy" aria-label="Sort snippets by">
       <option value="createdAt">Creation Date</option>
       <option value="updatedAt">Last Modified</option>
       <option value="title">Title</option>
       <option value="favorite">Favorites First</option>
     </select>
-    <button id="sortDirection">↓ Desc</button>
-    <button id="applySortBtn">Apply Sort</button>
+    <button id="sortDirection" aria-label="Toggle sort direction">↓ Desc</button>
+    <button id="applySortBtn" aria-label="Apply sort">Apply Sort</button>
   </div>
   <hr />
 
@@ -102,10 +128,10 @@
 
   <!-- Export / Import Section -->
   <div id="dataTransferSection">
-    <button id="exportBtn">Export Snippets</button>
+    <button id="exportBtn" aria-label="Export snippets">Export Snippets</button>
     <br /><br />
     <label for="importInput">Import Snippets (JSON):</label>
-    <input type="file" id="importInput" accept="application/json" />
+    <input type="file" id="importInput" accept="application/json" aria-label="Import snippets from JSON" />
   </div>
 
   <script src="popup.js"></script>

@@ -21,13 +21,33 @@ const sortDirectionBtn = document.getElementById("sortDirection");
 const applySortBtn = document.getElementById("applySortBtn");
 const exportBtn = document.getElementById("exportBtn");
 const importInput = document.getElementById("importInput");
+const statusMessage = document.getElementById("statusMessage");
 
 const snippetList = document.getElementById("snippetList");
 
 // Global sort state
 let currentSortBy = "createdAt";
 let isDescending = true;
-let currentFilter = null; // null, "favorites", or search term
+let currentSearchTerm = "";
+let isFavoritesOnly = false;
+let openEditContainer = null;
+
+const STATUS_DISPLAY_MS = 2500;
+
+function showStatus(message, type = "info") {
+  if (!statusMessage) return;
+  statusMessage.textContent = message;
+  statusMessage.classList.remove("hidden", "info", "error");
+  statusMessage.classList.add(type);
+  window.clearTimeout(showStatus._timer);
+  showStatus._timer = window.setTimeout(() => {
+    statusMessage.classList.add("hidden");
+  }, STATUS_DISPLAY_MS);
+}
+
+function showError(message) {
+  showStatus(message, "error");
+}
 
 // Save new snippet
 saveSnippetBtn.addEventListener("click", async () => {
@@ -37,11 +57,11 @@ saveSnippetBtn.addEventListener("click", async () => {
   const tagCategory = tagCategoryInput.value.trim();
 
   if (!title || !content) {
-    alert("Title and content are required.");
+    showError("Title and content are required.");
     return;
   }
 
-  let tagsArray = [];
+  const tagsArray = [];
   if (tagName) {
     tagsArray.push({ name: tagName, category: tagCategory || "general" });
   }
@@ -57,8 +77,10 @@ saveSnippetBtn.addEventListener("click", async () => {
   };
 
   const storedSnippets = await getStoredSnippets();
+  if (!storedSnippets) return;
   storedSnippets.push(newSnippet);
-  await setStoredSnippets(storedSnippets);
+  const saved = await setStoredSnippets(storedSnippets);
+  if (!saved) return;
 
   // Clear input fields
   titleInput.value = "";
@@ -67,67 +89,53 @@ saveSnippetBtn.addEventListener("click", async () => {
   contentInput.value = "";
 
   displaySnippetsWithSort(storedSnippets);
+  showStatus("Snippet saved.");
+});
+
+contentInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+    event.preventDefault();
+    saveSnippetBtn.click();
+  }
 });
 
 // Search functionality (on button click)
 searchBtn.addEventListener("click", async () => {
-  const keyword = searchInput.value.trim().toLowerCase();
-  const storedSnippets = await getStoredSnippets();
-  if (!keyword) {
-    currentFilter = null;
-    displaySnippetsWithSort(storedSnippets);
-    return;
-  }
-  currentFilter = keyword;
-  const filtered = storedSnippets.filter((s) => {
-    return (
-      s.title.toLowerCase().includes(keyword) ||
-      s.content.toLowerCase().includes(keyword)
-    );
-  });
-  displaySnippetsWithSort(filtered);
+  currentSearchTerm = searchInput.value.trim().toLowerCase();
+  await refreshCurrentView();
 });
 
 // Real-time search on input
 searchInput.addEventListener("input", async () => {
-  const keyword = searchInput.value.trim().toLowerCase();
-  const storedSnippets = await getStoredSnippets();
-  if (!keyword) {
-    currentFilter = null;
-    displaySnippetsWithSort(storedSnippets);
-    return;
+  currentSearchTerm = searchInput.value.trim().toLowerCase();
+  await refreshCurrentView();
+});
+
+searchInput.addEventListener("keydown", async (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    currentSearchTerm = searchInput.value.trim().toLowerCase();
+    await refreshCurrentView();
   }
-  currentFilter = keyword;
-  const filtered = storedSnippets.filter((s) => {
-    return (
-      s.title.toLowerCase().includes(keyword) ||
-      s.content.toLowerCase().includes(keyword)
-    );
-  });
-  displaySnippetsWithSort(filtered);
 });
 
 // Clear search input and show all
 clearSearchBtn.addEventListener("click", async () => {
   searchInput.value = "";
-  currentFilter = null;
-  const storedSnippets = await getStoredSnippets();
-  displaySnippetsWithSort(storedSnippets);
+  currentSearchTerm = "";
+  await refreshCurrentView();
 });
 
 // Filter favorites only
 filterFavoritesBtn.addEventListener("click", async () => {
-  currentFilter = "favorites";
-  const snippets = await getStoredSnippets();
-  const filtered = snippets.filter(s => s.favorite);
-  displaySnippetsWithSort(filtered);
+  isFavoritesOnly = true;
+  await refreshCurrentView();
 });
 
 // Clear favorite filter
 clearFilterBtn.addEventListener("click", async () => {
-  currentFilter = null;
-  const snippets = await getStoredSnippets();
-  displaySnippetsWithSort(snippets);
+  isFavoritesOnly = false;
+  await refreshCurrentView();
 });
 
 // Sort direction toggle
@@ -140,12 +148,14 @@ sortDirectionBtn.addEventListener("click", () => {
 applySortBtn.addEventListener("click", async () => {
   currentSortBy = sortBySelect.value;
   const snippets = await getStoredSnippets();
+  if (!snippets) return;
   displaySnippetsWithSort(snippets);
 });
 
 // Export snippets as JSON
 exportBtn.addEventListener("click", async () => {
   const snippets = await getStoredSnippets();
+  if (!snippets) return;
   const dataStr = JSON.stringify(snippets, null, 2);
   const blob = new Blob([dataStr], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -156,6 +166,7 @@ exportBtn.addEventListener("click", async () => {
   a.download = `snippets_${ts}.json`;
   a.click();
   URL.revokeObjectURL(url);
+  showStatus("Snippets exported.");
 });
 
 // Import snippets from JSON file (validated + de-dupe + merge policy)
@@ -179,38 +190,44 @@ importInput.addEventListener("change", (event) => {
       );
 
       const existing = await getStoredSnippets();
+      if (!existing) return;
       const byId = new Map(existing.map(s => [s.id, s]));
 
       let added = 0, updated = 0, invalid = 0;
 
+      const now = Date.now();
       for (const s of parsed) {
         if (!isValid(s)) { invalid++; continue; }
         const cur = byId.get(s.id);
         if (!cur) {
-          byId.set(s.id, s);
+          byId.set(s.id, { ...s, updatedAt: now });
           added++;
         } else {
-          const merged = mergeSnippets(cur, s);
+          const merged = mergeSnippets(cur, s, now);
           if (JSON.stringify(cur) !== JSON.stringify(merged)) updated++;
           byId.set(s.id, merged);
         }
       }
 
       const mergedAll = Array.from(byId.values());
-      await setStoredSnippets(mergedAll);
+      const saved = await setStoredSnippets(mergedAll);
+      if (!saved) return;
       displaySnippetsWithSort(mergedAll);
-      alert(`Import finished. Added: ${added}, Updated: ${updated}, Skipped invalid: ${invalid}.`);
+      showStatus(`Import finished. Added: ${added}, Updated: ${updated}, Skipped invalid: ${invalid}.`);
     } catch (error) {
-      alert("Failed to import snippets. Invalid file format.");
+      showError("Failed to import snippets. Invalid file format.");
     }
   };
+  reader.onerror = () => {
+    showError("Failed to read import file.");
+  };
   reader.readAsText(file);
+  importInput.value = "";
 });
 
 // Merge policy for same ID: prefer newer updatedAt, OR favorite, union tags
-function mergeSnippets(a, b) {
+function mergeSnippets(a, b, updatedAt = Date.now()) {
   const newer = (b.updatedAt || 0) >= (a.updatedAt || 0) ? b : a;
-  const older = newer === a ? b : a;
 
   // Unique tags by name+category (case-insensitive)
   const tags = [...(a.tags || []), ...(b.tags || [])];
@@ -226,7 +243,7 @@ function mergeSnippets(a, b) {
     ...newer,
     id: a.id,
     createdAt: Math.min(a.createdAt || Date.now(), b.createdAt || Date.now()),
-    updatedAt: Math.max(a.updatedAt || 0, b.updatedAt || 0),
+    updatedAt,
     favorite: (a.favorite ?? false) || (b.favorite ?? false),
     tags: uniqTags
   };
@@ -286,17 +303,19 @@ function displaySnippetsWithSort(snippets) {
  */
 async function refreshCurrentView() {
   const storedSnippets = await getStoredSnippets();
+  if (!storedSnippets) return;
   let filteredSnippets = storedSnippets;
   
   // Apply current filter
-  if (currentFilter === "favorites") {
+  if (isFavoritesOnly) {
     filteredSnippets = storedSnippets.filter(s => s.favorite);
-  } else if (typeof currentFilter === "string" && currentFilter.length > 0) {
-    // Search filter
-    filteredSnippets = storedSnippets.filter((s) => {
+  }
+
+  if (currentSearchTerm.length > 0) {
+    filteredSnippets = filteredSnippets.filter((s) => {
       return (
-        s.title.toLowerCase().includes(currentFilter) ||
-        s.content.toLowerCase().includes(currentFilter)
+        s.title.toLowerCase().includes(currentSearchTerm) ||
+        s.content.toLowerCase().includes(currentSearchTerm)
       );
     });
   }
@@ -310,6 +329,11 @@ async function refreshCurrentView() {
 async function getStoredSnippets() {
   return new Promise((resolve) => {
     chrome.storage.local.get(["snippets"], (result) => {
+      if (chrome.runtime.lastError) {
+        showError("Failed to load snippets.");
+        resolve(null);
+        return;
+      }
       resolve(result.snippets || []);
     });
   });
@@ -321,7 +345,12 @@ async function getStoredSnippets() {
 async function setStoredSnippets(snippets) {
   return new Promise((resolve) => {
     chrome.storage.local.set({ snippets }, () => {
-      resolve();
+      if (chrome.runtime.lastError) {
+        showError("Failed to save snippets.");
+        resolve(false);
+        return;
+      }
+      resolve(true);
     });
   });
 }
@@ -333,145 +362,210 @@ function generateId() {
   return "id-" + Math.random().toString(36).slice(2, 11);
 }
 
+async function updateSnippetInStorage(updatedSnippet) {
+  const storedSnippets = await getStoredSnippets();
+  if (!storedSnippets) return false;
+  const index = storedSnippets.findIndex((s) => s.id === updatedSnippet.id);
+  if (index === -1) {
+    showError("Snippet not found.");
+    return false;
+  }
+  storedSnippets[index] = updatedSnippet;
+  return setStoredSnippets(storedSnippets);
+}
+
+async function deleteSnippetFromStorage(snippetId) {
+  const storedSnippets = await getStoredSnippets();
+  if (!storedSnippets) return false;
+  const updatedSnippets = storedSnippets.filter((s) => s.id !== snippetId);
+  return setStoredSnippets(updatedSnippets);
+}
+
+function renderSnippetItem(snippet) {
+  const container = document.createElement("div");
+  container.className = "snippet-item";
+
+  // Favorite button
+  const favoriteBtn = document.createElement("button");
+  favoriteBtn.textContent = snippet.favorite ? "★" : "☆";
+  favoriteBtn.style.marginRight = "8px";
+  favoriteBtn.setAttribute("aria-label", "Toggle favorite");
+  favoriteBtn.addEventListener("click", async () => {
+    const updatedSnippet = {
+      ...snippet,
+      favorite: !snippet.favorite,
+      updatedAt: Date.now()
+    };
+    const saved = await updateSnippetInStorage(updatedSnippet);
+    if (!saved) return;
+    showStatus(updatedSnippet.favorite ? "Added to favorites." : "Removed from favorites.");
+    refreshCurrentView();
+  });
+  container.appendChild(favoriteBtn);
+
+  // Title element
+  const titleEl = document.createElement("h3");
+  titleEl.textContent = snippet.title;
+
+  // Tag container
+  const tagContainer = document.createElement("div");
+  if (snippet.tags && snippet.tags.length > 0) {
+    snippet.tags.forEach((t) => {
+      const tagEl = document.createElement("span");
+      tagEl.className = "tag";
+      tagEl.textContent = `${t.name} (${t.category})`;
+      tagContainer.appendChild(tagEl);
+    });
+  }
+
+  // Content element
+  const contentEl = document.createElement("p");
+  contentEl.textContent = snippet.content;
+
+  // Copy button
+  const copyBtn = document.createElement("button");
+  copyBtn.textContent = "Copy";
+  copyBtn.setAttribute("aria-label", "Copy snippet");
+  copyBtn.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(snippet.content);
+      showStatus("Copied to clipboard.");
+    } catch (e) {
+      showError("Failed to copy to clipboard.");
+    }
+  });
+
+  // Edit section (initially hidden)
+  const editContainer = document.createElement("div");
+  editContainer.className = "hidden";
+
+  const editTitleInput = document.createElement("input");
+  editTitleInput.type = "text";
+  editTitleInput.value = snippet.title;
+  editTitleInput.setAttribute("aria-label", "Edit title");
+
+  const editTagInput = document.createElement("input");
+  editTagInput.setAttribute("aria-label", "Edit tag");
+  if (snippet.tags && snippet.tags.length > 0) {
+    editTagInput.value = `${snippet.tags[0].name}:${snippet.tags[0].category}`;
+  } else {
+    editTagInput.value = "";
+  }
+
+  const editContentTextarea = document.createElement("textarea");
+  editContentTextarea.value = snippet.content;
+  editContentTextarea.setAttribute("aria-label", "Edit content");
+
+  const saveChangesBtn = document.createElement("button");
+  saveChangesBtn.textContent = "Save Changes";
+  saveChangesBtn.addEventListener("click", async () => {
+    const nextTitle = editTitleInput.value.trim();
+    const nextContent = editContentTextarea.value.trim();
+
+    if (!nextTitle || !nextContent) {
+      showError("Title and content are required.");
+      return;
+    }
+
+    const editTagStr = editTagInput.value.trim();
+    let nextTags = [];
+    if (editTagStr) {
+      const [name, category] = editTagStr.split(":").map((s) => s.trim());
+      nextTags = [{ name, category: category || "general" }];
+    }
+
+    const updatedSnippet = {
+      ...snippet,
+      title: nextTitle,
+      tags: nextTags,
+      content: nextContent,
+      updatedAt: Date.now()
+    };
+
+    const saved = await updateSnippetInStorage(updatedSnippet);
+    if (!saved) return;
+    showStatus("Snippet updated.");
+    editContainer.classList.add("hidden");
+    if (openEditContainer === editContainer) {
+      openEditContainer = null;
+    }
+    refreshCurrentView();
+  });
+
+  const cancelChangesBtn = document.createElement("button");
+  cancelChangesBtn.textContent = "Cancel";
+  cancelChangesBtn.addEventListener("click", () => {
+    editContainer.classList.add("hidden");
+    if (openEditContainer === editContainer) {
+      openEditContainer = null;
+    }
+  });
+
+  const editActions = document.createElement("div");
+  editActions.className = "edit-actions";
+  editActions.appendChild(saveChangesBtn);
+  editActions.appendChild(cancelChangesBtn);
+
+  editContainer.appendChild(editTitleInput);
+  editContainer.appendChild(document.createElement("br"));
+  editContainer.appendChild(editTagInput);
+  editContainer.appendChild(document.createElement("br"));
+  editContainer.appendChild(editContentTextarea);
+  editContainer.appendChild(editActions);
+
+  const editBtn = document.createElement("button");
+  editBtn.textContent = "Edit";
+  editBtn.addEventListener("click", () => {
+    if (openEditContainer && openEditContainer !== editContainer) {
+      openEditContainer.classList.add("hidden");
+    }
+    editContainer.classList.toggle("hidden");
+    openEditContainer = editContainer.classList.contains("hidden") ? null : editContainer;
+  });
+
+  const deleteBtn = document.createElement("button");
+  deleteBtn.textContent = "Delete";
+  deleteBtn.setAttribute("aria-label", "Delete snippet");
+  deleteBtn.addEventListener("click", async () => {
+    if (!confirm("Delete this snippet?")) return;
+    const deleted = await deleteSnippetFromStorage(snippet.id);
+    if (!deleted) return;
+    showStatus("Snippet deleted.");
+    refreshCurrentView();
+  });
+
+  const actions = document.createElement("div");
+  actions.className = "snippet-actions";
+  actions.appendChild(copyBtn);
+  actions.appendChild(editBtn);
+  actions.appendChild(deleteBtn);
+
+  container.appendChild(titleEl);
+  container.appendChild(tagContainer);
+  container.appendChild(contentEl);
+  container.appendChild(actions);
+  container.appendChild(editContainer);
+
+  return container;
+}
+
 /**
  * Display the list of snippets.
  * NOTE: ここでは **再ソートしない**。渡された順序（displaySnippetsWithSortの結果）を尊重。
  */
 function displaySnippets(snippets) {
-  snippetList.innerHTML = "";
+  snippetList.textContent = "";
 
   if (!snippets || snippets.length === 0) {
-    snippetList.innerHTML = "<p>No snippets found.</p>";
+    const emptyMessage = document.createElement("p");
+    emptyMessage.textContent = "No snippets found.";
+    snippetList.appendChild(emptyMessage);
     return;
   }
 
   const list = (snippets || []); // 受け取った順序をそのまま使用
   list.forEach((snippet) => {
-    const container = document.createElement("div");
-    container.className = "snippet-item";
-
-    // Favorite button
-    const favoriteBtn = document.createElement("button");
-    favoriteBtn.textContent = snippet.favorite ? "★" : "☆";
-    favoriteBtn.style.marginRight = "8px";
-    favoriteBtn.setAttribute('aria-label', 'Toggle favorite');
-    favoriteBtn.addEventListener("click", async () => {
-      snippet.favorite = !snippet.favorite;
-      snippet.updatedAt = Date.now();
-      const storedSnippets = await getStoredSnippets();
-      const index = storedSnippets.findIndex((s) => s.id === snippet.id);
-      if (index > -1) {
-        storedSnippets[index] = snippet;
-        await setStoredSnippets(storedSnippets);
-        refreshCurrentView();
-      }
-    });
-    container.appendChild(favoriteBtn);
-
-    // Title element
-    const titleEl = document.createElement("h3");
-    titleEl.textContent = snippet.title;
-
-    // Tag container
-    const tagContainer = document.createElement("div");
-    if (snippet.tags && snippet.tags.length > 0) {
-      snippet.tags.forEach((t) => {
-        const tagEl = document.createElement("span");
-        tagEl.className = "tag";
-        tagEl.textContent = `${t.name} (${t.category})`;
-        tagContainer.appendChild(tagEl);
-      });
-    }
-
-    // Content element
-    const contentEl = document.createElement("p");
-    contentEl.textContent = snippet.content;
-
-    // Copy button
-    const copyBtn = document.createElement('button');
-    copyBtn.textContent = 'Copy';
-    copyBtn.setAttribute('aria-label', 'Copy snippet');
-    copyBtn.style.marginRight = '8px';
-    copyBtn.addEventListener('click', async () => {
-      try { await navigator.clipboard.writeText(snippet.content); }
-      catch (e) { alert('Failed to copy to clipboard.'); }
-    });
-
-    // Edit section (initially hidden)
-    const editContainer = document.createElement("div");
-    editContainer.className = "hidden";
-
-    const editTitleInput = document.createElement("input");
-    editTitleInput.type = "text";
-    editTitleInput.value = snippet.title;
-
-    const editTagInput = document.createElement("input");
-    if (snippet.tags && snippet.tags.length > 0) {
-      editTagInput.value = `${snippet.tags[0].name}:${snippet.tags[0].category}`;
-    } else {
-      editTagInput.value = "";
-    }
-
-    const editContentTextarea = document.createElement("textarea");
-    editContentTextarea.value = snippet.content;
-
-    const saveChangesBtn = document.createElement("button");
-    saveChangesBtn.textContent = "Save Changes";
-    saveChangesBtn.addEventListener("click", async () => {
-      snippet.title = editTitleInput.value.trim();
-      const editTagStr = editTagInput.value.trim();
-      if (editTagStr) {
-        const [name, category] = editTagStr.split(":").map(s => s.trim());
-        snippet.tags = [{ name, category: category || "general" }];
-      } else {
-        snippet.tags = [];
-      }
-      snippet.content = editContentTextarea.value.trim();
-      snippet.updatedAt = Date.now();
-
-      const storedSnippets = await getStoredSnippets();
-      const index = storedSnippets.findIndex((s) => s.id === snippet.id);
-      if (index > -1) {
-        storedSnippets[index] = snippet;
-        await setStoredSnippets(storedSnippets);
-        refreshCurrentView();
-      }
-    });
-
-    editContainer.appendChild(editTitleInput);
-    editContainer.appendChild(document.createElement("br"));
-    editContainer.appendChild(editTagInput);
-    editContainer.appendChild(document.createElement("br"));
-    editContainer.appendChild(editContentTextarea);
-    editContainer.appendChild(document.createElement("br"));
-    editContainer.appendChild(saveChangesBtn);
-
-    const editBtn = document.createElement("button");
-    editBtn.textContent = "Edit";
-    editBtn.addEventListener("click", () => {
-      editContainer.classList.toggle("hidden");
-    });
-
-    const deleteBtn = document.createElement("button");
-    deleteBtn.textContent = "Delete";
-    deleteBtn.setAttribute('aria-label', 'Delete snippet');
-    deleteBtn.addEventListener("click", async () => {
-      if (!confirm('Delete this snippet?')) return;
-      const storedSnippets = await getStoredSnippets();
-      const updatedSnippets = storedSnippets.filter((s) => s.id !== snippet.id);
-      await setStoredSnippets(updatedSnippets);
-      refreshCurrentView();
-    });
-
-    container.appendChild(titleEl);
-    container.appendChild(tagContainer);
-    container.appendChild(contentEl);
-    container.appendChild(copyBtn);
-    container.appendChild(editBtn);
-    container.appendChild(deleteBtn);
-    container.appendChild(editContainer);
-
-    snippetList.appendChild(container);
+    snippetList.appendChild(renderSnippetItem(snippet));
   });
 }
 
@@ -480,6 +574,7 @@ function displaySnippets(snippets) {
  */
 async function init() {
   const storedSnippets = await getStoredSnippets();
+  if (!storedSnippets) return;
   displaySnippetsWithSort(storedSnippets);
 }
 
