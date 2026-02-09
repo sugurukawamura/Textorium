@@ -26,6 +26,7 @@ const statusMessage = document.getElementById("statusMessage");
 
 const snippetList = document.getElementById("snippetList");
 const themeToggleBtn = document.getElementById("themeToggleBtn");
+const snippetDomain = window.SnippetDomain;
 
 // Theme logic
 chrome.storage.local.get(["settings"], (result) => {
@@ -236,8 +237,8 @@ importInput.addEventListener("change", (event) => {
 
       const now = Date.now();
       for (const s of parsed) {
-        if (!isValidImportedSnippet(s)) { invalid++; continue; }
-        const normalized = normalizeImportedSnippet(s, now);
+        if (!snippetDomain.isValidImportedSnippet(s)) { invalid++; continue; }
+        const normalized = snippetDomain.normalizeImportedSnippet(s, now);
         const cur = byId.get(s.id);
         if (!cur) {
           byId.set(s.id, normalized);
@@ -269,91 +270,7 @@ importInput.addEventListener("change", (event) => {
  * Sort snippets based on current sort criteria and direction
  */
 function sortSnippets(snippets) {
-  const sorted = [...snippets]; // Create a copy to avoid mutating original
-  
-  sorted.sort((a, b) => {
-    let comparison = 0;
-    const aTitle = typeof a.title === "string" ? a.title : "";
-    const bTitle = typeof b.title === "string" ? b.title : "";
-    const aCreatedAt = typeof a.createdAt === "number" ? a.createdAt : 0;
-    const bCreatedAt = typeof b.createdAt === "number" ? b.createdAt : 0;
-    const aUpdatedAt = typeof a.updatedAt === "number" ? a.updatedAt : 0;
-    const bUpdatedAt = typeof b.updatedAt === "number" ? b.updatedAt : 0;
-    
-    switch (currentSortBy) {
-      case "title":
-        comparison = aTitle.toLowerCase().localeCompare(bTitle.toLowerCase());
-        break;
-      case "createdAt":
-        comparison = aCreatedAt - bCreatedAt;
-        break;
-      case "updatedAt":
-        comparison = aUpdatedAt - bUpdatedAt;
-        break;
-      case "favorite":
-        // Favorites first, then by creation date
-        if (a.favorite === b.favorite) {
-          comparison = bCreatedAt - aCreatedAt; // Newer first for same favorite status
-        } else {
-          comparison = (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0); // Favorites first
-        }
-        break;
-      default:
-        comparison = bCreatedAt - aCreatedAt; // Default: newest first
-    }
-    
-    // Apply sort direction (only for non-favorite sorting)
-    if (currentSortBy !== "favorite") {
-      return isDescending ? -comparison : comparison;
-    }
-    return comparison;
-  });
-  
-  return sorted;
-}
-
-function isValidImportedTag(tag) {
-  return !!tag &&
-    typeof tag === "object" &&
-    typeof tag.name === "string" &&
-    tag.name.trim().length > 0 &&
-    (tag.category === undefined || typeof tag.category === "string");
-}
-
-function normalizeSnippetTags(tags) {
-  if (!Array.isArray(tags)) return [];
-  return tags
-    .filter(isValidImportedTag)
-    .map((tag) => ({
-      ...tag,
-      category: tag.category && tag.category.trim().length > 0 ? tag.category : "general"
-    }));
-}
-
-function isValidImportedSnippet(snippet) {
-  if (!snippet || typeof snippet !== "object") return false;
-  if (typeof snippet.id !== "string" || snippet.id.length === 0) return false;
-  if (typeof snippet.title !== "string") return false;
-  if (typeof snippet.content !== "string") return false;
-  if (typeof snippet.createdAt !== "number") return false;
-  if (typeof snippet.updatedAt !== "number") return false;
-  if (snippet.tags !== undefined && (!Array.isArray(snippet.tags) || !snippet.tags.every(isValidImportedTag))) {
-    return false;
-  }
-  return true;
-}
-
-function normalizeImportedSnippet(snippet, updatedAt) {
-  return {
-    ...snippet,
-    tags: normalizeSnippetTags(snippet.tags),
-    favorite: typeof snippet.favorite === "boolean" ? snippet.favorite : false,
-    updatedAt
-  };
-}
-
-function getSnippetTags(snippet) {
-  return Array.isArray(snippet.tags) ? snippet.tags : [];
+  return snippetDomain.sortSnippets(snippets, currentSortBy, isDescending);
 }
 
 /**
@@ -369,34 +286,22 @@ function displaySnippetsWithSort(snippets) {
  */
 function updateTagFilterOptions(snippets) {
   const currentSelection = filterTagsSelect.value;
-  const tagsMap = new Map();
-
-  snippets.forEach(s => {
-    const tags = getSnippetTags(s);
-    tags.forEach(t => {
-      if (!t || typeof t !== "object" || !t.name) return;
-      const category = t.category || "general";
-      const key = `${t.name}:${category}`;
-      tagsMap.set(key, `${t.name} (${category})`);
-    });
-  });
+  const options = snippetDomain.buildTagFilterOptions(snippets);
 
   // Clear existing options except the first "All Tags"
   while (filterTagsSelect.options.length > 1) {
     filterTagsSelect.remove(1);
   }
 
-  const sortedKeys = Array.from(tagsMap.keys()).sort();
-
-  sortedKeys.forEach(key => {
+  options.forEach(({ value, label }) => {
     const option = document.createElement("option");
-    option.value = key;
-    option.textContent = tagsMap.get(key);
+    option.value = value;
+    option.textContent = label;
     filterTagsSelect.appendChild(option);
   });
 
   // Restore selection if valid
-  if (tagsMap.has(currentSelection)) {
+  if (options.some((option) => option.value === currentSelection)) {
     filterTagsSelect.value = currentSelection;
   } else {
     filterTagsSelect.value = "";
@@ -412,38 +317,12 @@ async function refreshCurrentView() {
 
   updateTagFilterOptions(storedSnippets);
 
-  let filteredSnippets = storedSnippets;
-  
-  // Apply current filter
-  if (isFavoritesOnly) {
-    filteredSnippets = storedSnippets.filter(s => s.favorite);
-  }
+  const filteredSnippets = snippetDomain.filterSnippets(storedSnippets, {
+    searchTerm: currentSearchTerm,
+    favoritesOnly: isFavoritesOnly,
+    selectedTag: filterTagsSelect.value
+  });
 
-  const selectedTag = filterTagsSelect.value;
-  if (selectedTag) {
-    // Last colon separates name and category.
-    const lastColonIndex = selectedTag.lastIndexOf(":");
-    const name = lastColonIndex > -1 ? selectedTag.substring(0, lastColonIndex) : selectedTag;
-    const category = lastColonIndex > -1 ? selectedTag.substring(lastColonIndex + 1) : "";
-    filteredSnippets = filteredSnippets.filter(s =>
-      getSnippetTags(s).some(t => t.name === name && (t.category || "general") === category)
-    );
-  }
-
-  if (currentSearchTerm.length > 0) {
-    filteredSnippets = filteredSnippets.filter((s) => {
-      const title = typeof s.title === "string" ? s.title : "";
-      const content = typeof s.content === "string" ? s.content : "";
-      const inTitle = title.toLowerCase().includes(currentSearchTerm);
-      const inContent = content.toLowerCase().includes(currentSearchTerm);
-      const inTags = getSnippetTags(s).some(t =>
-        (t.name && t.name.toLowerCase().includes(currentSearchTerm)) ||
-        (t.category && t.category.toLowerCase().includes(currentSearchTerm))
-      );
-      return inTitle || inContent || inTags;
-    });
-  }
-  
   displaySnippetsWithSort(filteredSnippets);
 }
 
@@ -546,7 +425,7 @@ function createSnippetFavoriteBtn(snippet) {
 
 function createSnippetTags(snippet) {
   const tagContainer = document.createElement("div");
-  const tags = getSnippetTags(snippet);
+  const tags = snippetDomain.getSnippetTags(snippet);
   if (tags.length > 0) {
     tags.forEach((t) => {
       const tagEl = document.createElement("span");
@@ -652,7 +531,7 @@ function createEditForm(snippet) {
   editTagCategoryInput.setAttribute("aria-label", "Edit tag category");
   editTagCategoryInput.placeholder = "Tag Category";
 
-  const snippetTags = getSnippetTags(snippet);
+  const snippetTags = snippetDomain.getSnippetTags(snippet);
   if (snippetTags.length > 0) {
     editTagNameInput.value = snippetTags[0].name || "";
     editTagCategoryInput.value = snippetTags[0].category || "";
@@ -679,7 +558,7 @@ function createEditForm(snippet) {
     const nextTagCategory = editTagCategoryInput.value.trim();
 
     // Preserve other tags
-    const otherTags = getSnippetTags(snippet).slice(1);
+    const otherTags = snippetDomain.getSnippetTags(snippet).slice(1);
     const firstTag = nextTagName ? [{ name: nextTagName, category: nextTagCategory || "general" }] : [];
     const nextTags = [...firstTag, ...otherTags];
 
@@ -776,6 +655,10 @@ function displaySnippets(snippets) {
  * Initialize the popup by loading stored snippets.
  */
 async function init() {
+  if (!snippetDomain) {
+    showError("Failed to load snippet domain logic.");
+    return;
+  }
   await refreshCurrentView();
 }
 

@@ -4,7 +4,7 @@
   "description": "Textorium Chrome Extension",
   "main": "popup.js",
   "scripts": {
-    "test": "node --test utils.test.js"
+    "test": "node --test utils.test.js snippet-domain.test.js"
   },
   "keywords": [],
   "author": "",

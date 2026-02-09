@@ -6,13 +6,17 @@
 ## Project overview
 - **What**: Textorium is a *Chrome extension (Manifest V3)* for managing local text snippets in a popup UI.
 - **Scope**: Plain HTML/CSS/JS. No bundler. No external network calls.
-- **Key files**: `manifest.json`, `popup.html`, `popup.js`, `background.js`, `README.md`.
+- **Key files**: `manifest.json`, `popup.html`, `popup.js`, `snippet-domain.js`, `utils.js`, `background.js`, `README.md`.
 
 ## Repository layout (flat)
 ```
 /manifest.json        # MV3 manifest
 /popup.html           # Popup UI
 /popup.js             # Popup logic (render/search/import/export etc.)
+/snippet-domain.js    # Pure domain logic (filter/sort/import normalization)
+/utils.js             # Shared helpers (id generation, merge policy)
+/utils.test.js        # Unit tests for utils.js
+/snippet-domain.test.js # Unit tests for snippet-domain.js
 /background.js        # Minimal service worker (onInstalled, future hooks)
 /README.md            # Overview & install steps
 ```
@@ -46,6 +50,7 @@ Stored under key **`"snippets"`** in `chrome.storage.local`. Each item:
 - **I/O discipline**: batch reads/writes to `chrome.storage.local`; avoid loops that `set` per item.
 - **Error handling**: check `chrome.runtime.lastError`; surface user‑friendly messages in the popup.
 - **Structure**: keep functions short; extract UI renderers (e.g., `renderSnippetItem(snippet)`), storage helpers (`getStoredSnippets`, `setStoredSnippets`).
+- **Separation**: keep pure domain logic in `snippet-domain.js`; keep `popup.js` focused on UI events and chrome APIs.
 - **Naming**: lowerCamel for vars/functions, SCREAMING_SNAKE for constants.
 
 ## Security & privacy guardrails (do not remove)

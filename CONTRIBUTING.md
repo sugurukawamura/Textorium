@@ -28,6 +28,7 @@ Examples:
 2. Create a branch
    - `git checkout -b feat/<short-description>`
 3. Implement and test
+   - `npm test`
 4. Commit using Conventional Commit style
 5. Open PR and review
 6. Merge after approval
