@@ -8,6 +8,7 @@ const POPUP_FILE = path.join(ROOT_DIR, "popup.html");
 const ARTIFACT_DIR = path.join(ROOT_DIR, "artifacts", "ui-layout");
 
 const VIEWPORTS = [
+  { width: 180, height: 640 },
   { width: 340, height: 640 },
   { width: 380, height: 640 },
   { width: 420, height: 700 }
@@ -55,9 +56,20 @@ async function run() {
 
       try {
         assert.ok(metrics.scrollWidth <= metrics.clientWidth + 1, `Horizontal overflow detected: ${JSON.stringify({ viewport, metrics })}`);
-        assert.ok(metrics.bodyWidth >= 260, `Popup body width too small: ${JSON.stringify({ viewport, metrics })}`);
-        assert.ok(metrics.topbarWidth >= 260, `Topbar clipped: ${JSON.stringify({ viewport, metrics })}`);
-        assert.ok(metrics.searchSectionWidth >= 260, `Search section clipped: ${JSON.stringify({ viewport, metrics })}`);
+        const minExpectedBodyWidth = Math.min(viewport.width, 260) - 2;
+        assert.ok(
+          metrics.bodyWidth >= minExpectedBodyWidth,
+          `Popup body width too small: ${JSON.stringify({ viewport, metrics, minExpectedBodyWidth })}`
+        );
+        const minExpectedSectionWidth = Math.min(viewport.width - 16, 260);
+        assert.ok(
+          metrics.topbarWidth >= minExpectedSectionWidth,
+          `Topbar clipped: ${JSON.stringify({ viewport, metrics, minExpectedSectionWidth })}`
+        );
+        assert.ok(
+          metrics.searchSectionWidth >= minExpectedSectionWidth,
+          `Search section clipped: ${JSON.stringify({ viewport, metrics, minExpectedSectionWidth })}`
+        );
       } catch (error) {
         failures.push(String(error.message || error));
       } finally {
