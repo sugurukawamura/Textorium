@@ -16,6 +16,7 @@ const searchBtn = document.getElementById("searchBtn");
 const clearSearchBtn = document.getElementById("clearSearchBtn");
 const filterFavoritesBtn = document.getElementById("filterFavoritesBtn");
 const clearFilterBtn = document.getElementById("clearFilterBtn");
+const filterTagsSelect = document.getElementById("filterTags");
 const sortBySelect = document.getElementById("sortBy");
 const sortDirectionBtn = document.getElementById("sortDirection");
 const applySortBtn = document.getElementById("applySortBtn");
@@ -24,6 +25,28 @@ const importInput = document.getElementById("importInput");
 const statusMessage = document.getElementById("statusMessage");
 
 const snippetList = document.getElementById("snippetList");
+const themeToggleBtn = document.getElementById("themeToggleBtn");
+
+// Theme logic
+chrome.storage.local.get(["settings"], (result) => {
+  const settings = result.settings || {};
+  if (settings.theme === "dark") {
+    document.body.classList.add("dark-mode");
+    themeToggleBtn.textContent = "☀️";
+  }
+});
+
+themeToggleBtn.addEventListener("click", () => {
+  document.body.classList.toggle("dark-mode");
+  const isDark = document.body.classList.contains("dark-mode");
+  themeToggleBtn.textContent = isDark ? "☀️" : "🌙";
+
+  chrome.storage.local.get(["settings"], (result) => {
+    const settings = result.settings || {};
+    settings.theme = isDark ? "dark" : "light";
+    chrome.storage.local.set({ settings });
+  });
+});
 
 // Global sort state
 let currentSortBy = "createdAt";
@@ -132,9 +155,15 @@ filterFavoritesBtn.addEventListener("click", async () => {
   await refreshCurrentView();
 });
 
+// Filter by tag
+filterTagsSelect.addEventListener("change", async () => {
+  await refreshCurrentView();
+});
+
 // Clear favorite filter
 clearFilterBtn.addEventListener("click", async () => {
   isFavoritesOnly = false;
+  filterTagsSelect.value = "";
   await refreshCurrentView();
 });
 
@@ -299,11 +328,52 @@ function displaySnippetsWithSort(snippets) {
 }
 
 /**
+ * Update the tag filter dropdown options based on available snippets.
+ */
+function updateTagFilterOptions(snippets) {
+  const currentSelection = filterTagsSelect.value;
+  const tagsMap = new Map();
+
+  snippets.forEach(s => {
+    if (s.tags) {
+      s.tags.forEach(t => {
+        const key = `${t.name}:${t.category}`;
+        tagsMap.set(key, `${t.name} (${t.category})`);
+      });
+    }
+  });
+
+  // Clear existing options except the first "All Tags"
+  while (filterTagsSelect.options.length > 1) {
+    filterTagsSelect.remove(1);
+  }
+
+  const sortedKeys = Array.from(tagsMap.keys()).sort();
+
+  sortedKeys.forEach(key => {
+    const option = document.createElement("option");
+    option.value = key;
+    option.textContent = tagsMap.get(key);
+    filterTagsSelect.appendChild(option);
+  });
+
+  // Restore selection if valid
+  if (tagsMap.has(currentSelection)) {
+    filterTagsSelect.value = currentSelection;
+  } else {
+    filterTagsSelect.value = "";
+  }
+}
+
+/**
  * Refresh the current view with appropriate filters and sorting
  */
 async function refreshCurrentView() {
   const storedSnippets = await getStoredSnippets();
   if (!storedSnippets) return;
+
+  updateTagFilterOptions(storedSnippets);
+
   let filteredSnippets = storedSnippets;
   
   // Apply current filter
@@ -311,12 +381,23 @@ async function refreshCurrentView() {
     filteredSnippets = storedSnippets.filter(s => s.favorite);
   }
 
+  const selectedTag = filterTagsSelect.value;
+  if (selectedTag) {
+    const [name, category] = selectedTag.split(":");
+    filteredSnippets = filteredSnippets.filter(s =>
+      s.tags && s.tags.some(t => t.name === name && t.category === category)
+    );
+  }
+
   if (currentSearchTerm.length > 0) {
     filteredSnippets = filteredSnippets.filter((s) => {
-      return (
-        s.title.toLowerCase().includes(currentSearchTerm) ||
-        s.content.toLowerCase().includes(currentSearchTerm)
+      const inTitle = s.title.toLowerCase().includes(currentSearchTerm);
+      const inContent = s.content.toLowerCase().includes(currentSearchTerm);
+      const inTags = s.tags && s.tags.some(t =>
+        (t.name && t.name.toLowerCase().includes(currentSearchTerm)) ||
+        (t.category && t.category.toLowerCase().includes(currentSearchTerm))
       );
+      return inTitle || inContent || inTags;
     });
   }
   
@@ -385,7 +466,30 @@ function renderSnippetItem(snippet) {
   const container = document.createElement("div");
   container.className = "snippet-item";
 
-  // Favorite button
+  const favoriteBtn = createSnippetFavoriteBtn(snippet);
+  container.appendChild(favoriteBtn);
+
+  const titleEl = document.createElement("h3");
+  titleEl.textContent = snippet.title;
+  container.appendChild(titleEl);
+
+  const tagContainer = createSnippetTags(snippet);
+  container.appendChild(tagContainer);
+
+  const contentEl = createSnippetContent(snippet);
+  container.appendChild(contentEl);
+
+  const editContainer = createEditForm(snippet);
+
+  const actions = createSnippetActions(snippet, editContainer);
+  container.appendChild(actions);
+
+  container.appendChild(editContainer);
+
+  return container;
+}
+
+function createSnippetFavoriteBtn(snippet) {
   const favoriteBtn = document.createElement("button");
   favoriteBtn.textContent = snippet.favorite ? "★" : "☆";
   favoriteBtn.style.marginRight = "8px";
@@ -401,13 +505,10 @@ function renderSnippetItem(snippet) {
     showStatus(updatedSnippet.favorite ? "Added to favorites." : "Removed from favorites.");
     refreshCurrentView();
   });
-  container.appendChild(favoriteBtn);
+  return favoriteBtn;
+}
 
-  // Title element
-  const titleEl = document.createElement("h3");
-  titleEl.textContent = snippet.title;
-
-  // Tag container
+function createSnippetTags(snippet) {
   const tagContainer = document.createElement("div");
   if (snippet.tags && snippet.tags.length > 0) {
     snippet.tags.forEach((t) => {
@@ -417,10 +518,39 @@ function renderSnippetItem(snippet) {
       tagContainer.appendChild(tagEl);
     });
   }
+  return tagContainer;
+}
 
-  // Content element
+function createSnippetContent(snippet) {
+  const container = document.createElement("div");
+
   const contentEl = document.createElement("p");
+  contentEl.className = "snippet-content";
   contentEl.textContent = snippet.content;
+  container.appendChild(contentEl);
+
+  const lines = (snippet.content.match(/\n/g) || []).length;
+  const isLong = snippet.content.length > 200 || lines > 3;
+
+  if (isLong) {
+    contentEl.classList.add("collapsed");
+
+    const toggleBtn = document.createElement("button");
+    toggleBtn.className = "read-more-btn";
+    toggleBtn.textContent = "Read More";
+    toggleBtn.addEventListener("click", () => {
+      contentEl.classList.toggle("collapsed");
+      toggleBtn.textContent = contentEl.classList.contains("collapsed") ? "Read More" : "Show Less";
+    });
+    container.appendChild(toggleBtn);
+  }
+
+  return container;
+}
+
+function createSnippetActions(snippet, editContainer) {
+  const actions = document.createElement("div");
+  actions.className = "snippet-actions";
 
   // Copy button
   const copyBtn = document.createElement("button");
@@ -435,7 +565,36 @@ function renderSnippetItem(snippet) {
     }
   });
 
-  // Edit section (initially hidden)
+  // Edit button
+  const editBtn = document.createElement("button");
+  editBtn.textContent = "Edit";
+  editBtn.addEventListener("click", () => {
+    if (openEditContainer && openEditContainer !== editContainer) {
+      openEditContainer.classList.add("hidden");
+    }
+    editContainer.classList.toggle("hidden");
+    openEditContainer = editContainer.classList.contains("hidden") ? null : editContainer;
+  });
+
+  // Delete button
+  const deleteBtn = document.createElement("button");
+  deleteBtn.textContent = "Delete";
+  deleteBtn.setAttribute("aria-label", "Delete snippet");
+  deleteBtn.addEventListener("click", async () => {
+    if (!confirm("Delete this snippet?")) return;
+    const deleted = await deleteSnippetFromStorage(snippet.id);
+    if (!deleted) return;
+    showStatus("Snippet deleted.");
+    refreshCurrentView();
+  });
+
+  actions.appendChild(copyBtn);
+  actions.appendChild(editBtn);
+  actions.appendChild(deleteBtn);
+  return actions;
+}
+
+function createEditForm(snippet) {
   const editContainer = document.createElement("div");
   editContainer.className = "hidden";
 
@@ -443,18 +602,25 @@ function renderSnippetItem(snippet) {
   editTitleInput.type = "text";
   editTitleInput.value = snippet.title;
   editTitleInput.setAttribute("aria-label", "Edit title");
+  editTitleInput.placeholder = "Title";
 
-  const editTagInput = document.createElement("input");
-  editTagInput.setAttribute("aria-label", "Edit tag");
+  const editTagNameInput = document.createElement("input");
+  editTagNameInput.setAttribute("aria-label", "Edit tag name");
+  editTagNameInput.placeholder = "Tag Name";
+
+  const editTagCategoryInput = document.createElement("input");
+  editTagCategoryInput.setAttribute("aria-label", "Edit tag category");
+  editTagCategoryInput.placeholder = "Tag Category";
+
   if (snippet.tags && snippet.tags.length > 0) {
-    editTagInput.value = `${snippet.tags[0].name}:${snippet.tags[0].category}`;
-  } else {
-    editTagInput.value = "";
+    editTagNameInput.value = snippet.tags[0].name || "";
+    editTagCategoryInput.value = snippet.tags[0].category || "";
   }
 
   const editContentTextarea = document.createElement("textarea");
   editContentTextarea.value = snippet.content;
   editContentTextarea.setAttribute("aria-label", "Edit content");
+  editContentTextarea.placeholder = "Content";
 
   const saveChangesBtn = document.createElement("button");
   saveChangesBtn.textContent = "Save Changes";
@@ -467,11 +633,12 @@ function renderSnippetItem(snippet) {
       return;
     }
 
-    const editTagStr = editTagInput.value.trim();
+    const nextTagName = editTagNameInput.value.trim();
+    const nextTagCategory = editTagCategoryInput.value.trim();
+
     let nextTags = [];
-    if (editTagStr) {
-      const [name, category] = editTagStr.split(":").map((s) => s.trim());
-      nextTags = [{ name, category: category || "general" }];
+    if (nextTagName) {
+      nextTags = [{ name: nextTagName, category: nextTagCategory || "general" }];
     }
 
     const updatedSnippet = {
@@ -508,45 +675,14 @@ function renderSnippetItem(snippet) {
 
   editContainer.appendChild(editTitleInput);
   editContainer.appendChild(document.createElement("br"));
-  editContainer.appendChild(editTagInput);
+  editContainer.appendChild(editTagNameInput);
+  editContainer.appendChild(document.createElement("br"));
+  editContainer.appendChild(editTagCategoryInput);
   editContainer.appendChild(document.createElement("br"));
   editContainer.appendChild(editContentTextarea);
   editContainer.appendChild(editActions);
 
-  const editBtn = document.createElement("button");
-  editBtn.textContent = "Edit";
-  editBtn.addEventListener("click", () => {
-    if (openEditContainer && openEditContainer !== editContainer) {
-      openEditContainer.classList.add("hidden");
-    }
-    editContainer.classList.toggle("hidden");
-    openEditContainer = editContainer.classList.contains("hidden") ? null : editContainer;
-  });
-
-  const deleteBtn = document.createElement("button");
-  deleteBtn.textContent = "Delete";
-  deleteBtn.setAttribute("aria-label", "Delete snippet");
-  deleteBtn.addEventListener("click", async () => {
-    if (!confirm("Delete this snippet?")) return;
-    const deleted = await deleteSnippetFromStorage(snippet.id);
-    if (!deleted) return;
-    showStatus("Snippet deleted.");
-    refreshCurrentView();
-  });
-
-  const actions = document.createElement("div");
-  actions.className = "snippet-actions";
-  actions.appendChild(copyBtn);
-  actions.appendChild(editBtn);
-  actions.appendChild(deleteBtn);
-
-  container.appendChild(titleEl);
-  container.appendChild(tagContainer);
-  container.appendChild(contentEl);
-  container.appendChild(actions);
-  container.appendChild(editContainer);
-
-  return container;
+  return editContainer;
 }
 
 /**
