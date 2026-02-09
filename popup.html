@@ -1,226 +1,325 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Textorium</title>
   <style>
     :root {
-      --bg-color: #ffffff;
-      --text-color: #000000;
-      --border-color: #ccc;
-      --item-bg: #ffffff;
-      --tag-bg: #efefef;
-      --input-bg: #ffffff;
-      --input-text: #000000;
-      --status-info-bg: #eef5ff;
-      --status-info-text: #1f4b99;
-      --status-error-bg: #fdecea;
-      --status-error-text: #a61c1c;
-      --link-color: #007bff;
+      --bg: #f4f6f2;
+      --panel: #ffffff;
+      --panel-soft: #f9faf7;
+      --text: #182022;
+      --muted: #5d6764;
+      --line: #cfd6d3;
+      --accent: #0f766e;
+      --accent-soft: #e7f3f1;
+      --danger: #b42318;
+      --danger-soft: #fef0ed;
+      --radius: 12px;
+      --shadow: 0 8px 22px rgba(13, 32, 27, 0.08);
+      --font-ui: "Noto Sans JP", "Hiragino Sans", "Yu Gothic UI", sans-serif;
     }
     body.dark-mode {
-      --bg-color: #222222;
-      --text-color: #eeeeee;
-      --border-color: #444444;
-      --item-bg: #333333;
-      --tag-bg: #555555;
-      --input-bg: #444444;
-      --input-text: #eeeeee;
-      --status-info-bg: #1a3a6e;
-      --status-info-text: #aacbff;
-      --status-error-bg: #6e1a1a;
-      --status-error-text: #ffaaaa;
-      --link-color: #66b3ff;
+      --bg: #101312;
+      --panel: #1a1f1d;
+      --panel-soft: #111715;
+      --text: #e5ecea;
+      --muted: #9fb0ab;
+      --line: #35433f;
+      --accent: #38b2a7;
+      --accent-soft: #15322f;
+      --danger: #ff6a5f;
+      --danger-soft: #3f1b17;
+      --shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+    }
+    * {
+      box-sizing: border-box;
     }
     body {
-      font-family: Arial, sans-serif;
       margin: 0;
-      padding: 10px;
-      width: 400px;
-      height: 600px;
+      width: 420px;
+      min-height: 620px;
+      padding: 12px;
       overflow-y: auto;
-      background-color: var(--bg-color);
-      color: var(--text-color);
+      font-family: var(--font-ui);
+      background:
+        radial-gradient(140px 100px at right -20px top -12px, rgba(15, 118, 110, 0.12), transparent),
+        var(--bg);
+      color: var(--text);
     }
-    input, textarea, select {
-      background-color: var(--input-bg);
-      color: var(--input-text);
-      border: 1px solid var(--border-color);
+    .app {
+      display: grid;
+      gap: 10px;
+    }
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: color-mix(in srgb, var(--panel) 92%, transparent);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(4px);
+    }
+    .brand {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+    .brand h1 {
+      margin: 0;
+      font-size: 1.1rem;
+      letter-spacing: 0.04em;
+    }
+    .brand small {
+      color: var(--muted);
+      font-size: 0.7rem;
+    }
+    .toolbar {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .section {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      padding: 10px;
+      box-shadow: var(--shadow);
+    }
+    .section h2 {
+      margin: 0 0 8px;
+      font-size: 0.9rem;
+    }
+    .grid {
+      display: grid;
+      gap: 8px;
+    }
+    .grid.two {
+      grid-template-columns: 1fr 1fr;
+    }
+    label {
+      font-size: 0.78rem;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    input, textarea, select, button {
+      width: 100%;
+      font: inherit;
+      border-radius: 9px;
+      border: 1px solid var(--line);
+      background: var(--panel-soft);
+      color: var(--text);
+      padding: 8px 9px;
+    }
+    textarea {
+      min-height: 90px;
+      resize: vertical;
     }
     button {
-      background-color: var(--input-bg); /* Use input bg for buttons too for simplicity */
-      color: var(--input-text);
-      border: 1px solid var(--border-color);
       cursor: pointer;
+      transition: background-color 120ms ease, border-color 120ms ease;
     }
     button:hover {
-      opacity: 0.8;
+      border-color: var(--accent);
+    }
+    .btn-primary {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      font-weight: 700;
+    }
+    .btn-ghost {
+      background: transparent;
+    }
+    .inline-actions {
+      display: grid;
+      gap: 6px;
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .status-message {
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      padding: 7px 9px;
+      font-size: 0.82rem;
+    }
+    .status-message.info {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+    .status-message.error {
+      background: var(--danger-soft);
+      color: var(--danger);
     }
     .snippet-item {
-      border: 1px solid var(--border-color);
-      background-color: var(--item-bg);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--panel);
+      padding: 10px;
       margin-bottom: 8px;
-      padding: 8px;
+    }
+    .snippet-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
     }
     .snippet-item h3 {
-      margin: 0 0 4px 0;
+      margin: 0;
+      font-size: 0.92rem;
+      word-break: break-word;
     }
     .snippet-item p {
       white-space: pre-wrap;
       word-break: break-word;
-    }
-    .hidden {
-      display: none;
+      margin: 6px 0;
+      color: var(--text);
     }
     .tag {
-      background-color: var(--tag-bg);
-      border-radius: 4px;
-      padding: 2px 6px;
-      margin-right: 4px;
-      font-size: 0.9em;
+      display: inline-block;
+      margin: 0 6px 6px 0;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 0.73rem;
+      color: var(--muted);
+      background: var(--panel-soft);
+      border: 1px solid var(--line);
     }
-    .status-message {
-      border-radius: 4px;
-      margin: 8px 0;
-      padding: 6px 8px;
-      font-size: 0.9em;
-    }
-    .status-message.info {
-      background-color: var(--status-info-bg);
-      color: var(--status-info-text);
-    }
-    .status-message.error {
-      background-color: var(--status-error-bg);
-      color: var(--status-error-text);
-    }
-    .snippet-actions {
-      margin-top: 6px;
-    }
-    .snippet-actions button {
-      margin-right: 6px;
-    }
+    .snippet-actions,
     .edit-actions {
+      display: flex;
+      gap: 6px;
       margin-top: 6px;
-    }
-    .snippet-content {
-      margin: 0 0 4px 0;
     }
     .snippet-content.collapsed {
-      max-height: 4.8em; /* Roughly 3-4 lines */
+      max-height: 4.7em;
       overflow: hidden;
       mask-image: linear-gradient(180deg, black 60%, transparent 100%);
       -webkit-mask-image: linear-gradient(180deg, black 60%, transparent 100%);
     }
     .read-more-btn {
-      background: none;
-      border: none;
-      color: var(--link-color);
-      cursor: pointer;
       padding: 0;
-      font-size: 0.9em;
-      margin-bottom: 8px;
-    }
-    .read-more-btn:hover {
-      text-decoration: underline;
-    }
-    .header-container {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 10px;
-    }
-    .header-container h2 {
-      margin: 0;
-    }
-    .theme-toggle-btn {
       border: none;
       background: transparent;
-      font-size: 1.2em;
+      width: auto;
+      color: var(--accent);
+      font-size: 0.78rem;
+      text-align: left;
     }
-    .filter-select {
-      max-width: 150px;
+    .hidden {
+      display: none !important;
     }
-    /* Responsive design 
-    @media (max-width: 350px) {
+    @media (max-width: 430px) {
       body {
         width: 100%;
-        padding: 5px;
       }
-      input, textarea, button {
+      .grid.two,
+      .inline-actions {
+        grid-template-columns: 1fr;
+      }
+      .toolbar {
         width: 100%;
-        box-sizing: border-box;
       }
     }
-      */
   </style>
 </head>
 <body>
-  <div class="header-container">
-    <h2>Textorium</h2>
-    <button id="themeToggleBtn" aria-label="Toggle dark mode" class="theme-toggle-btn">🌙</button>
-  </div>
-  <div id="statusMessage" class="status-message hidden" role="status" aria-live="polite"></div>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <h1>Textorium</h1>
+        <small data-i18n-text="header.localOnly">LOCAL ONLY</small>
+      </div>
+      <div class="toolbar">
+        <select id="languageSelect" data-aria-key="aria.language" style="width:auto; min-width: 84px;">
+          <option value="ja">日本語</option>
+          <option value="en">EN</option>
+        </select>
+        <button id="themeToggleBtn" class="btn-ghost" data-aria-key="aria.themeToggle" style="width:auto; min-width:40px;">🌙</button>
+      </div>
+    </header>
 
-  <!-- Add New Snippet Form -->
-  <div>
-    <h4>Add New Snippet</h4>
-    <label for="title">Title:</label>
-    <input type="text" id="title" placeholder="Title" />
-    <br /><br />
-    <label for="tagName">Tag Name:</label>
-    <input type="text" id="tagName" placeholder="e.g., meeting" aria-label="Tag name" />
-    <br /><br />
-    <label for="tagCategory">Tag Category:</label>
-    <input type="text" id="tagCategory" placeholder="e.g., work" aria-label="Tag category" />
-    <br /><br />
-    <label for="content">Content:</label>
-    <textarea id="content" placeholder="Enter your snippet text here..." rows="3" cols="30" aria-label="Snippet content"></textarea>
-    <br /><br />
-    <button id="saveSnippetBtn" aria-label="Save snippet">Save Snippet</button>
-  </div>
-  <hr />
+    <div id="statusMessage" class="status-message hidden" role="status" aria-live="polite"></div>
 
-  <!-- Search and Filter -->
-  <div>
-    <h4>Search / Filter</h4>
-    <input type="text" id="searchInput" placeholder="Search by title or content" aria-label="Search snippets" />
-    <button id="searchBtn" aria-label="Search snippets">Search</button>
-    <button id="clearSearchBtn" aria-label="Clear search">Clear</button>
-    <br /><br />
-    <select id="filterTags" aria-label="Filter by tag" class="filter-select">
-      <option value="">All Tags</option>
-    </select>
-    <button id="filterFavoritesBtn" aria-label="Show favorites only">Show Favorites Only</button>
-    <button id="clearFilterBtn" aria-label="Clear filters">Clear Filter</button>
-  </div>
-  <hr />
+    <section class="section">
+      <h2 data-i18n-text="section.add">新規スニペット</h2>
+      <div class="grid">
+        <div class="grid">
+          <label for="title" data-i18n-text="field.title">タイトル</label>
+          <input type="text" id="title" data-i18n-placeholder="placeholder.title" data-aria-key="aria.title" />
+        </div>
+        <div class="grid two">
+          <div class="grid">
+            <label for="tagName" data-i18n-text="field.tagName">タグ名</label>
+            <input type="text" id="tagName" data-i18n-placeholder="placeholder.tagName" data-aria-key="aria.tagName" />
+          </div>
+          <div class="grid">
+            <label for="tagCategory" data-i18n-text="field.tagCategory">カテゴリ</label>
+            <input type="text" id="tagCategory" data-i18n-placeholder="placeholder.tagCategory" data-aria-key="aria.tagCategory" />
+          </div>
+        </div>
+        <div class="grid">
+          <label for="content" data-i18n-text="field.content">本文</label>
+          <textarea id="content" rows="4" data-i18n-placeholder="placeholder.content" data-aria-key="aria.content"></textarea>
+        </div>
+        <button id="saveSnippetBtn" class="btn-primary" data-i18n-text="action.saveSnippet" data-aria-key="aria.saveSnippet">保存</button>
+      </div>
+    </section>
 
-  <!-- Sort Options -->
-  <div>
-    <h4>Sort</h4>
-    <label for="sortBy">Sort by:</label>
-    <select id="sortBy" aria-label="Sort snippets by">
-      <option value="createdAt">Creation Date</option>
-      <option value="updatedAt">Last Modified</option>
-      <option value="title">Title</option>
-      <option value="favorite">Favorites First</option>
-    </select>
-    <button id="sortDirection" aria-label="Toggle sort direction">↓ Desc</button>
-    <button id="applySortBtn" aria-label="Apply sort">Apply Sort</button>
-  </div>
-  <hr />
+    <section class="section">
+      <h2 data-i18n-text="section.search">検索とフィルタ</h2>
+      <div class="grid">
+        <div class="grid two">
+          <input type="text" id="searchInput" data-i18n-placeholder="placeholder.search" data-aria-key="aria.search" />
+          <select id="filterTags" data-aria-key="aria.filterTag">
+            <option value="" data-i18n-text="filter.allTags">すべてのタグ</option>
+          </select>
+        </div>
+        <div class="inline-actions">
+          <button id="searchBtn" data-i18n-text="action.search" data-aria-key="aria.searchButton">検索</button>
+          <button id="clearSearchBtn" data-i18n-text="action.clearSearch" data-aria-key="aria.clearSearch">検索クリア</button>
+          <button id="filterFavoritesBtn" data-i18n-text="action.favoritesOnlyOff" data-aria-key="aria.favoritesOnly">お気に入り: OFF</button>
+        </div>
+        <button id="clearFilterBtn" class="btn-ghost" data-i18n-text="action.clearFilter" data-aria-key="aria.clearFilter">フィルタをリセット</button>
+      </div>
+    </section>
 
-  <!-- Snippet List -->
-  <div id="snippetList"></div>
+    <section class="section">
+      <h2 data-i18n-text="section.sort">並び替え</h2>
+      <div class="grid">
+        <div class="grid two">
+          <select id="sortBy" data-aria-key="aria.sortBy">
+            <option value="createdAt" data-i18n-text="sort.createdAt">作成日</option>
+            <option value="updatedAt" data-i18n-text="sort.updatedAt">更新日</option>
+            <option value="title" data-i18n-text="sort.title">タイトル</option>
+            <option value="favorite" data-i18n-text="sort.favorite">お気に入り優先</option>
+          </select>
+          <button id="sortDirection" data-aria-key="aria.sortDirection">↓ Desc</button>
+        </div>
+        <button id="applySortBtn" data-i18n-text="action.applySort" data-aria-key="aria.applySort">適用</button>
+      </div>
+    </section>
 
-  <hr />
+    <section class="section">
+      <h2 data-i18n-text="section.list">スニペット一覧</h2>
+      <div id="snippetList"></div>
+    </section>
 
-  <!-- Export / Import Section -->
-  <div id="dataTransferSection">
-    <button id="exportBtn" aria-label="Export snippets">Export Snippets</button>
-    <br /><br />
-    <label for="importInput">Import Snippets (JSON):</label>
-    <input type="file" id="importInput" accept="application/json" aria-label="Import snippets from JSON" />
+    <section class="section">
+      <h2 data-i18n-text="section.transfer">バックアップ/復元</h2>
+      <div class="grid">
+        <button id="exportBtn" data-i18n-text="action.export" data-aria-key="aria.export">エクスポート</button>
+        <div class="grid">
+          <label for="importInput" data-i18n-text="field.import">JSONをインポート</label>
+          <input type="file" id="importInput" accept="application/json" data-aria-key="aria.import" />
+        </div>
+      </div>
+    </section>
   </div>
 
   <script src="utils.js"></script>
