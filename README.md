@@ -34,7 +34,7 @@ Textorium is a Chrome extension that lets you manage and save text snippets, pro
 
 1. Click the extension icon to open the popup.
 2. Add a new snippet by entering a title, tag details (Name and Category), and the content.
-3. Save your snippet.
+3. Save your snippet (use the Save button or press Ctrl/Cmd + Enter in the content field).
 4. Use the search bar to find snippets or filter by favorites.
 5. Export your snippets as a JSON file for backup or import them later.
 
