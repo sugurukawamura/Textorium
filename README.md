@@ -1,46 +1,63 @@
 # Textorium
 
-Textorium is a Chrome extension (Manifest V3) for local snippet management in the popup UI.
-It is intentionally small, offline-first, and privacy-safe:
+Textorium is a Chrome extension (Manifest V3) for local text snippet management.
 
 - Local storage only (`chrome.storage.local`)
 - No telemetry
 - No content scripts
 - No external network access
 
-## Why Textorium Exists
+## 1. 使い方 (日本語)
 
-Textorium focuses on quick capture and retrieval of text snippets without leaving the browser context.
-The core design is:
+### インストール
 
-- Fast save and edit
-- Reliable local persistence
-- Lightweight search and filtering
-- Safe backup and restore via JSON
+1. Chrome で `chrome://extensions` を開く
+2. 右上の `デベロッパーモード` を ON
+3. `パッケージ化されていない拡張機能を読み込む` をクリック
+4. このリポジトリのルートフォルダを選択
+5. ツールバーの Textorium アイコンをクリックして起動
 
-## Current Feature Set
+### 基本操作
+
+1. 画面右上で言語を `日本語 / EN` から選択
+2. `タイトル` と `本文` を入力して保存
+3. 必要に応じてタグ名/カテゴリを入力
+4. 検索、タグ絞り込み、お気に入り絞り込みを組み合わせて抽出
+5. 並び替え条件と昇順/降順を切り替え
+6. 必要なスニペットを `コピー` / `編集` / `削除`
+7. `エクスポート` でバックアップ、`インポート` で復元
+
+### キーボード操作
+
+- 新規作成:
+  - 単一行入力で `Enter` 保存
+  - 本文入力で `Ctrl/Cmd + Enter` 保存
+- 編集フォーム:
+  - 単一行入力で `Enter` 保存
+  - 本文入力で `Ctrl/Cmd + Enter` 保存
+  - `Esc` でキャンセル
+
+## 2. Quick Start (English)
+
+1. Open `chrome://extensions` and enable Developer mode.
+2. Click `Load unpacked` and select this repository root.
+3. Open the popup from the browser toolbar.
+4. Create snippets, then use search/tag/favorites/sort to retrieve them.
+5. Use export/import JSON for backup and restore.
+
+## 3. Current Features
 
 - Create, edit, delete snippets
 - Favorite toggle
 - Japanese/English language switch (saved in local settings)
-- Search by title, content, and tags
-- Filter by tag and favorites
+- Search by title/content/tags
+- Tag filter + favorites-only filter
 - Sort by created/updated/title/favorite
-- Copy snippet content to clipboard
-- Export/import JSON with validation and merge-by-id behavior
-- Light, compact popup UI with theme toggle (light/dark)
-- Keyboard shortcuts
-  - New snippet: `Ctrl/Cmd + Enter` in content, `Enter` in single-line inputs
-  - Edit form: `Enter` save (single-line), `Ctrl/Cmd + Enter` save (content), `Esc` cancel
+- Copy content to clipboard
+- Export/import JSON with validation and merge-by-id
+- Theme toggle (light/dark)
 
-## Code Structure
-
-- `popup.js`: popup UI and Chrome API integration
-- `snippet-domain.js`: pure snippet domain logic (filter/sort/import validation)
-- `utils.js`: shared utilities (`generateId`, merge policy)
-- `*.test.js`: Node-based unit tests for pure logic
-
-## Data Model
+## 4. Data Model
 
 Stored under key `snippets` in `chrome.storage.local`.
 
@@ -56,57 +73,83 @@ Stored under key `snippets` in `chrome.storage.local`.
 }
 ```
 
-Compatibility rules:
+Rules:
 
-- Existing data must remain readable
-- Import/edit updates `updatedAt`
-- Create sets `createdAt` and `updatedAt`
-- Unknown fields should be preserved during merge/import operations
+- Backward compatible with existing stored data
+- `updatedAt` is refreshed on edit/import merge
+- `createdAt` and `updatedAt` are set on create
+- Unknown fields are preserved during import merge
 
-## Install (No Build Tooling)
+## 5. Project Structure
 
-1. Open `chrome://extensions`
-2. Enable Developer mode
-3. Click `Load unpacked`
-4. Select this repository root
-5. Open the extension popup from the toolbar
+- `popup.html`: popup layout and styles
+- `popup.js`: popup UI + chrome API integration
+- `snippet-domain.js`: pure domain logic (filter/sort/import normalization)
+- `utils.js`: helpers (`generateId`, merge policy)
+- `utils.test.js`: unit tests for utilities
+- `snippet-domain.test.js`: unit tests for domain logic
+- `background.js`: minimal service worker
 
-## Quick Usage
+## 6. Testing
 
-1. Choose language (`日本語` / `EN`) from the header.
-2. Add title/content and optional tag info, then save.
-3. Use search + tag + favorites toggle together to narrow results.
-4. Use sort controls to reorder by date/title/favorite.
-5. Export for backup and import JSON to restore.
+### Unit tests
 
-## Manual QA (Minimum)
+- Command: `npm test`
+- Scope: pure logic in `utils.js` and `snippet-domain.js`
+
+### PATH troubleshooting (Windows)
+
+If `npm` or `node` is not found, add `C:\Program Files\nodejs` to PATH, then reopen terminal.
+
+PowerShell example:
+
+```powershell
+$env:Path = "C:\Program Files\nodejs;$env:Path"
+npm test
+```
+
+### Manual QA checklist
 
 1. Add/edit/delete snippets
-2. Confirm sort and search behavior
-3. Toggle favorites and tag filters
-4. Export JSON, clear storage, import JSON back
-5. Confirm data persists after extension reload and browser restart
+2. Confirm search/filter/sort behavior
+3. Toggle favorites and verify filtering
+4. Export JSON -> clear storage -> import JSON -> verify roundtrip
+5. Reload extension and browser, then confirm persistence
 
-## Automated Tests
+## 7. Development Workflow
 
-- Run: `npm test`
-- Scope: pure functions only (`utils.js`, `snippet-domain.js`)
-- UI behavior remains manually tested in Chrome popup
+New feature development should be done on a dedicated branch, not directly on `main`.
 
-## Product Direction
+Branch examples:
 
-A deeper functional review and roadmap are documented in `PRODUCT_REVIEW.md`.
-Short version:
+- `feat/<short-description>`
+- `fix/<short-description>`
+- `refactor/<short-description>`
+- `docs/<short-description>`
+- `chore/<short-description>`
 
-- Keep Textorium popup-only and local-first
-- Improve retrieval quality (tags/filtering/saved views)
-- Improve reliability and accessibility before adding complex features
+Commit message format:
 
-## Development Workflow
+`<type>: <summary>`
 
-Branching and commit policy are documented in `CONTRIBUTING.md`.
-All new development should use a dedicated branch and merge via PR.
+Examples:
 
-## License
+- `feat: add tag filter composition with search`
+- `fix: preserve unknown fields in import merge`
+- `docs: reorganize readme for ja/en usage`
 
-[MIT License](LICENSE)
+Detailed policy: `CONTRIBUTING.md`
+
+## 8. Security and Privacy
+
+- No new manifest permissions unless required and reviewed
+- No content scripts unless explicitly requested
+- No telemetry/analytics/network calls
+
+## 9. Product Notes
+
+Longer review and roadmap: `PRODUCT_REVIEW.md`
+
+## 10. License
+
+This project is licensed under the [MIT License](LICENSE).
