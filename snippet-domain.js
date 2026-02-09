@@ -7,6 +7,20 @@ function getSnippetTags(snippet) {
   return Array.isArray(snippet?.tags) ? snippet.tags : [];
 }
 
+function ensureSnippetsArray(snippets) {
+  return Array.isArray(snippets) ? snippets : [];
+}
+
+function normalizeTag(tag) {
+  if (!tag || typeof tag !== "object") return null;
+  const name = typeof tag.name === "string" ? tag.name.trim() : "";
+  if (!name) return null;
+  const rawCategory = typeof tag.category === "string" ? tag.category.trim() : "";
+  const category = rawCategory || "general";
+  const key = `${name.toLowerCase()}:${category.toLowerCase()}`;
+  return { name, category, key };
+}
+
 function isValidImportedTag(tag) {
   return !!tag &&
     typeof tag === "object" &&
@@ -50,13 +64,14 @@ function normalizeImportedSnippet(snippet, updatedAt) {
 function buildTagFilterOptions(snippets) {
   const tagsMap = new Map();
 
-  snippets.forEach((snippet) => {
+  ensureSnippetsArray(snippets).forEach((snippet) => {
     const tags = getSnippetTags(snippet);
     tags.forEach((tag) => {
-      if (!tag || typeof tag !== "object" || !tag.name) return;
-      const category = tag.category || "general";
-      const key = `${tag.name}:${category}`;
-      tagsMap.set(key, `${tag.name} (${category})`);
+      const normalizedTag = normalizeTag(tag);
+      if (!normalizedTag) return;
+      if (!tagsMap.has(normalizedTag.key)) {
+        tagsMap.set(normalizedTag.key, `${normalizedTag.name} (${normalizedTag.category})`);
+      }
     });
   });
 
@@ -72,7 +87,7 @@ function parseTagSelection(selectedTag) {
   const lastColonIndex = selectedTag.lastIndexOf(":");
   const name = lastColonIndex > -1 ? selectedTag.substring(0, lastColonIndex) : selectedTag;
   const category = lastColonIndex > -1 ? selectedTag.substring(lastColonIndex + 1) : "";
-  return { name, category };
+  return normalizeTag({ name, category });
 }
 
 function includesSearchText(snippet, searchTerm) {
@@ -80,10 +95,12 @@ function includesSearchText(snippet, searchTerm) {
   const content = typeof snippet.content === "string" ? snippet.content : "";
   const inTitle = title.toLowerCase().includes(searchTerm);
   const inContent = content.toLowerCase().includes(searchTerm);
-  const inTags = getSnippetTags(snippet).some((tag) =>
-    (tag.name && tag.name.toLowerCase().includes(searchTerm)) ||
-    (tag.category && tag.category.toLowerCase().includes(searchTerm))
-  );
+  const inTags = getSnippetTags(snippet).some((tag) => {
+    const normalizedTag = normalizeTag(tag);
+    if (!normalizedTag) return false;
+    return normalizedTag.name.toLowerCase().includes(searchTerm) ||
+      normalizedTag.category.toLowerCase().includes(searchTerm);
+  });
   return inTitle || inContent || inTags;
 }
 
@@ -94,15 +111,16 @@ function filterSnippets(snippets, options = {}) {
 
   const parsedTag = parseTagSelection(selectedTag);
 
-  return snippets.filter((snippet) => {
+  return ensureSnippetsArray(snippets).filter((snippet) => {
     if (favoritesOnly && !snippet.favorite) {
       return false;
     }
 
     if (parsedTag) {
-      const hasTag = getSnippetTags(snippet).some((tag) =>
-        tag.name === parsedTag.name && (tag.category || "general") === parsedTag.category
-      );
+      const hasTag = getSnippetTags(snippet).some((tag) => {
+        const normalizedTag = normalizeTag(tag);
+        return normalizedTag && normalizedTag.key === parsedTag.key;
+      });
       if (!hasTag) return false;
     }
 
@@ -115,7 +133,7 @@ function filterSnippets(snippets, options = {}) {
 }
 
 function sortSnippets(snippets, sortBy = "createdAt", isDescending = true) {
-  const sorted = [...snippets];
+  const sorted = [...ensureSnippetsArray(snippets)];
 
   sorted.sort((a, b) => {
     let comparison = 0;
