@@ -563,8 +563,8 @@ function displaySnippets(snippets) {
     return;
   }
 
-  const list = (snippets || []); // 受け取った順序をそのまま使用
-  list.forEach((snippet) => {
+  // 受け取った順序をそのまま使用
+  snippets.forEach((snippet) => {
     snippetList.appendChild(renderSnippetItem(snippet));
   });
 }
