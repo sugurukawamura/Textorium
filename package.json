@@ -1,0 +1,12 @@
+{
+  "name": "textorium",
+  "version": "1.0.0",
+  "description": "Textorium Chrome Extension",
+  "main": "popup.js",
+  "scripts": {
+    "test": "node --test utils.test.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT"
+}
