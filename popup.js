@@ -563,10 +563,12 @@ function displaySnippets(snippets) {
     return;
   }
 
-  // 受け取った順序をそのまま使用
+  // Use DocumentFragment to batch DOM insertions and reduce layout thrashing
+  const fragment = document.createDocumentFragment();
   snippets.forEach((snippet) => {
-    snippetList.appendChild(renderSnippetItem(snippet));
+    fragment.appendChild(renderSnippetItem(snippet));
   });
+  snippetList.appendChild(fragment);
 }
 
 /**
