@@ -98,6 +98,12 @@ Rules:
 - Command: `npm test`
 - Scope: pure logic in `utils.js` and `snippet-domain.js`
 
+### Visual layout test
+
+- Command: `npm run test:ui`
+- Runs Playwright headless checks on `popup.html` at multiple viewport sizes
+- Detects horizontal overflow/clipping and saves screenshots to `artifacts/ui-layout/`
+
 ### PATH troubleshooting (Windows)
 
 If `npm` or `node` is not found, add `C:\Program Files\nodejs` to PATH, then reopen terminal.

@@ -4,9 +4,14 @@
   "description": "Textorium Chrome Extension",
   "main": "popup.js",
   "scripts": {
-    "test": "node --test utils.test.js snippet-domain.test.js"
+    "test": "node --test utils.test.js snippet-domain.test.js",
+    "test:ui": "node ui-layout-check.mjs",
+    "test:all": "npm test && npm run test:ui"
   },
   "keywords": [],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "playwright": "^1.53.2"
+  }
 }
