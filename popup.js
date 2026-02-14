@@ -27,7 +27,7 @@ const statusMessage = document.getElementById("statusMessage");
 
 const snippetList = document.getElementById("snippetList");
 const themeToggleBtn = document.getElementById("themeToggleBtn");
-const snippetDomain = window.SnippetDomain;
+const domain = window.SnippetDomain;
 
 const SETTINGS_KEY = "settings";
 const STATUS_DISPLAY_MS = 2500;
@@ -534,7 +534,7 @@ importInput.addEventListener("change", (event) => {
 
       const existing = await getStoredSnippets();
       if (!existing) return;
-      const result = snippetDomain.mergeImportedSnippets(existing, parsed, Date.now(), mergeSnippets);
+      const result = domain.mergeImportedSnippets(existing, parsed, Date.now(), mergeSnippets);
       const saved = await setStoredSnippets(result.snippets);
       if (!saved) return;
 
@@ -572,7 +572,7 @@ languageSelect.addEventListener("change", async () => {
 });
 
 function sortSnippets(snippets) {
-  return snippetDomain.sortSnippets(snippets, currentSortBy, isDescending);
+  return domain.sortSnippets(snippets, currentSortBy, isDescending);
 }
 
 function displaySnippetsWithSort(snippets) {
@@ -581,7 +581,7 @@ function displaySnippetsWithSort(snippets) {
 
 function updateTagFilterOptions(snippets) {
   const currentSelection = filterTagsSelect.value;
-  const options = snippetDomain.buildTagFilterOptions(snippets);
+  const options = domain.buildTagFilterOptions(snippets);
 
   while (filterTagsSelect.options.length > 1) {
     filterTagsSelect.remove(1);
@@ -611,7 +611,7 @@ async function refreshCurrentView() {
 
   updateTagFilterOptions(storedSnippets);
 
-  const filteredSnippets = snippetDomain.filterSnippets(storedSnippets, {
+  const filteredSnippets = domain.filterSnippets(storedSnippets, {
     searchTerm: currentSearchTerm,
     favoritesOnly: isFavoritesOnly,
     selectedTag: filterTagsSelect.value
@@ -712,7 +712,7 @@ function createSnippetFavoriteBtn(snippet) {
 
 function createSnippetTags(snippet) {
   const tagContainer = document.createElement("div");
-  const tags = snippetDomain.getSnippetTags(snippet);
+  const tags = domain.getSnippetTags(snippet);
   tags.forEach((tag) => {
     const tagEl = document.createElement("span");
     tagEl.className = "tag";
@@ -810,7 +810,7 @@ function createEditForm(snippet) {
   editTagCategoryInput.placeholder = t("placeholder.tagCategory");
   editTagCategoryInput.setAttribute("aria-label", t("aria.editTagCategory"));
 
-  const snippetTags = snippetDomain.getSnippetTags(snippet);
+  const snippetTags = domain.getSnippetTags(snippet);
   if (snippetTags.length > 0) {
     editTagNameInput.value = snippetTags[0].name || "";
     editTagCategoryInput.value = snippetTags[0].category || "";
@@ -834,7 +834,7 @@ function createEditForm(snippet) {
 
     const nextTagName = editTagNameInput.value.trim();
     const nextTagCategory = editTagCategoryInput.value.trim();
-    const otherTags = snippetDomain.getSnippetTags(snippet).slice(1);
+    const otherTags = domain.getSnippetTags(snippet).slice(1);
     const firstTag = nextTagName ? [{ name: nextTagName, category: nextTagCategory || "general" }] : [];
     const nextTags = [...firstTag, ...otherTags];
 
@@ -918,7 +918,7 @@ function displaySnippets(snippets) {
 }
 
 async function init() {
-  if (!snippetDomain) {
+  if (!domain) {
     showErrorKey("error.loadDomain");
     return;
   }

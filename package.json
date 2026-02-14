@@ -6,7 +6,8 @@
   "scripts": {
     "test": "node --test utils.test.js snippet-domain.test.js",
     "test:ui": "node ui-layout-check.mjs",
-    "test:all": "npm test && npm run test:ui"
+    "test:functional": "node ui-functional.test.mjs",
+    "test:all": "npm test && npm run test:ui && npm run test:functional"
   },
   "keywords": [],
   "author": "",
