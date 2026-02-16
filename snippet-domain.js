@@ -67,10 +67,14 @@ function buildTagFilterOptions(snippets) {
   ensureSnippetsArray(snippets).forEach((snippet) => {
     const tags = getSnippetTags(snippet);
     tags.forEach((tag) => {
-      const normalizedTag = normalizeTag(tag);
-      if (!normalizedTag) return;
-      if (!tagsMap.has(normalizedTag.key)) {
-        tagsMap.set(normalizedTag.key, `${normalizedTag.name} (${normalizedTag.category})`);
+      if (!tag || typeof tag !== "object") return;
+      const name = typeof tag.name === "string" ? tag.name.trim() : "";
+      if (!name) return;
+      const rawCategory = typeof tag.category === "string" ? tag.category.trim() : "";
+      const category = rawCategory || "general";
+      const key = `${name.toLowerCase()}:${category.toLowerCase()}`;
+      if (!tagsMap.has(key)) {
+        tagsMap.set(key, `${name} (${category})`);
       }
     });
   });
@@ -96,10 +100,13 @@ function includesSearchText(snippet, searchTerm) {
   const inTitle = title.toLowerCase().includes(searchTerm);
   const inContent = content.toLowerCase().includes(searchTerm);
   const inTags = getSnippetTags(snippet).some((tag) => {
-    const normalizedTag = normalizeTag(tag);
-    if (!normalizedTag) return false;
-    return normalizedTag.name.toLowerCase().includes(searchTerm) ||
-      normalizedTag.category.toLowerCase().includes(searchTerm);
+    if (!tag || typeof tag !== "object") return false;
+    const name = typeof tag.name === "string" ? tag.name.trim() : "";
+    if (!name) return false;
+    if (name.toLowerCase().includes(searchTerm)) return true;
+    const rawCategory = typeof tag.category === "string" ? tag.category.trim() : "";
+    const category = rawCategory || "general";
+    return category.toLowerCase().includes(searchTerm);
   });
   return inTitle || inContent || inTags;
 }
@@ -110,6 +117,8 @@ function filterSnippets(snippets, options = {}) {
   const selectedTag = typeof options.selectedTag === "string" ? options.selectedTag : "";
 
   const parsedTag = parseTagSelection(selectedTag);
+  const selectedNameLower = parsedTag ? parsedTag.name.toLowerCase() : "";
+  const selectedCategoryLower = parsedTag ? parsedTag.category.toLowerCase() : "";
 
   return ensureSnippetsArray(snippets).filter((snippet) => {
     if (favoritesOnly && !snippet.favorite) {
@@ -118,8 +127,13 @@ function filterSnippets(snippets, options = {}) {
 
     if (parsedTag) {
       const hasTag = getSnippetTags(snippet).some((tag) => {
-        const normalizedTag = normalizeTag(tag);
-        return normalizedTag && normalizedTag.key === parsedTag.key;
+        if (!tag || typeof tag !== "object") return false;
+        const name = typeof tag.name === "string" ? tag.name.trim() : "";
+        if (!name) return false;
+        const rawCategory = typeof tag.category === "string" ? tag.category.trim() : "";
+        const category = rawCategory || "general";
+        return name.toLowerCase() === selectedNameLower &&
+          category.toLowerCase() === selectedCategoryLower;
       });
       if (!hasTag) return false;
     }
