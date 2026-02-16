@@ -335,19 +335,19 @@ function showStatus(message, type = "info") {
   }, STATUS_DISPLAY_MS);
 }
 
-function showStatusKey(key, values = {}) {
-  showStatus(t(key, values), "info");
-}
-
-function showErrorKey(key, values = {}) {
-  showStatus(t(key, values), "error");
+function showStatusKey(key, values = {}, type = "info") {
+  if (typeof values === "string") {
+    type = values;
+    values = {};
+  }
+  showStatus(t(key, values), type);
 }
 
 async function loadSettings() {
   return new Promise((resolve) => {
     chrome.storage.local.get([SETTINGS_KEY], (result) => {
       if (chrome.runtime.lastError) {
-        showErrorKey("error.loadSettings");
+        showStatusKey("error.loadSettings", "error");
         resolve({});
         return;
       }
@@ -360,7 +360,7 @@ async function saveSettings() {
   return new Promise((resolve) => {
     chrome.storage.local.set({ [SETTINGS_KEY]: settingsState }, () => {
       if (chrome.runtime.lastError) {
-        showErrorKey("error.saveSettings");
+        showStatusKey("error.saveSettings", "error");
         resolve(false);
         return;
       }
@@ -397,7 +397,7 @@ saveSnippetBtn.addEventListener("click", async () => {
   const tagCategory = tagCategoryInput.value.trim();
 
   if (!title || !content) {
-    showErrorKey("error.requiredTitleContent");
+    showStatusKey("error.requiredTitleContent", "error");
     return;
   }
 
@@ -545,12 +545,12 @@ importInput.addEventListener("change", (event) => {
         invalid: result.invalid
       });
     } catch (error) {
-      showErrorKey("error.importInvalid");
+      showStatusKey("error.importInvalid", "error");
     }
   };
 
   reader.onerror = () => {
-    showErrorKey("error.importRead");
+    showStatusKey("error.importRead", "error");
   };
 
   reader.readAsText(file);
@@ -624,7 +624,7 @@ async function getStoredSnippets() {
   return new Promise((resolve) => {
     chrome.storage.local.get(["snippets"], (result) => {
       if (chrome.runtime.lastError) {
-        showErrorKey("error.loadSnippets");
+        showStatusKey("error.loadSnippets", "error");
         resolve(null);
         return;
       }
@@ -637,7 +637,7 @@ async function setStoredSnippets(snippets) {
   return new Promise((resolve) => {
     chrome.storage.local.set({ snippets }, () => {
       if (chrome.runtime.lastError) {
-        showErrorKey("error.saveSnippets");
+        showStatusKey("error.saveSnippets", "error");
         resolve(false);
         return;
       }
@@ -652,7 +652,7 @@ async function updateSnippetInStorage(updatedSnippet) {
 
   const index = storedSnippets.findIndex((snippet) => snippet.id === updatedSnippet.id);
   if (index === -1) {
-    showErrorKey("error.snippetNotFound");
+    showStatusKey("error.snippetNotFound", "error");
     return false;
   }
 
@@ -760,7 +760,7 @@ function createSnippetActions(snippet, editContainer) {
       await navigator.clipboard.writeText(contentText);
       showStatusKey("status.copied");
     } catch (error) {
-      showErrorKey("error.copyFailed");
+      showStatusKey("error.copyFailed", "error");
     }
   });
 
@@ -828,7 +828,7 @@ function createEditForm(snippet) {
     const nextTitle = editTitleInput.value.trim();
     const nextContent = editContentTextarea.value.trim();
     if (!nextTitle || !nextContent) {
-      showErrorKey("error.requiredTitleContent");
+      showStatusKey("error.requiredTitleContent", "error");
       return;
     }
 
@@ -919,7 +919,7 @@ function displaySnippets(snippets) {
 
 async function init() {
   if (!snippetDomain) {
-    showErrorKey("error.loadDomain");
+    showStatusKey("error.loadDomain", "error");
     return;
   }
   await applyInitialSettings();
