@@ -3,6 +3,13 @@
  * This file intentionally avoids DOM/chrome APIs so it can be unit tested.
  */
 
+const LIMITS = {
+  TITLE: 200,
+  CONTENT: 10000,
+  TAG_NAME: 50,
+  TAG_CATEGORY: 50
+};
+
 function getSnippetTags(snippet) {
   return Array.isArray(snippet?.tags) ? snippet.tags : [];
 }
@@ -26,7 +33,8 @@ function isValidImportedTag(tag) {
     typeof tag === "object" &&
     typeof tag.name === "string" &&
     tag.name.trim().length > 0 &&
-    (tag.category === undefined || typeof tag.category === "string");
+    tag.name.length <= LIMITS.TAG_NAME &&
+    (tag.category === undefined || (typeof tag.category === "string" && tag.category.length <= LIMITS.TAG_CATEGORY));
 }
 
 function normalizeSnippetTags(tags) {
@@ -42,8 +50,8 @@ function normalizeSnippetTags(tags) {
 function isValidImportedSnippet(snippet) {
   if (!snippet || typeof snippet !== "object") return false;
   if (typeof snippet.id !== "string" || snippet.id.length === 0) return false;
-  if (typeof snippet.title !== "string") return false;
-  if (typeof snippet.content !== "string") return false;
+  if (typeof snippet.title !== "string" || snippet.title.length > LIMITS.TITLE) return false;
+  if (typeof snippet.content !== "string" || snippet.content.length > LIMITS.CONTENT) return false;
   if (typeof snippet.createdAt !== "number") return false;
   if (typeof snippet.updatedAt !== "number") return false;
   if (snippet.tags !== undefined && (!Array.isArray(snippet.tags) || !snippet.tags.every(isValidImportedTag))) {
@@ -218,6 +226,7 @@ function mergeImportedSnippets(existingSnippets, importedSnippets, now, mergeByI
 }
 
 const snippetDomain = {
+  LIMITS,
   getSnippetTags,
   isValidImportedSnippet,
   normalizeImportedSnippet,

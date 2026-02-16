@@ -33,6 +33,26 @@ test("isValidImportedSnippet validates required fields and tag shape", () => {
   assert.strictEqual(isValidImportedSnippet(invalidTagShape), false);
 });
 
+test("isValidImportedSnippet enforces length limits", () => {
+  const base = {
+    id: "id-1",
+    title: "Title",
+    content: "Content",
+    createdAt: 1,
+    updatedAt: 2
+  };
+
+  const longTitle = { ...base, title: "a".repeat(201) };
+  const longContent = { ...base, content: "a".repeat(10001) };
+  const longTagName = { ...base, tags: [{ name: "a".repeat(51), category: "general" }] };
+  const longTagCategory = { ...base, tags: [{ name: "work", category: "a".repeat(51) }] };
+
+  assert.strictEqual(isValidImportedSnippet(longTitle), false, "Should reject long title");
+  assert.strictEqual(isValidImportedSnippet(longContent), false, "Should reject long content");
+  assert.strictEqual(isValidImportedSnippet(longTagName), false, "Should reject long tag name");
+  assert.strictEqual(isValidImportedSnippet(longTagCategory), false, "Should reject long tag category");
+});
+
 test("normalizeImportedSnippet applies defaults and preserves extra fields", () => {
   const snippet = {
     id: "id-1",

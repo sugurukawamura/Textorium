@@ -27,7 +27,7 @@ const statusMessage = document.getElementById("statusMessage");
 
 const snippetList = document.getElementById("snippetList");
 const themeToggleBtn = document.getElementById("themeToggleBtn");
-const snippetDomain = window.SnippetDomain;
+const domain = window.SnippetDomain;
 
 const SETTINGS_KEY = "settings";
 const STATUS_DISPLAY_MS = 2500;
@@ -112,7 +112,11 @@ const I18N = {
       copyFailed: "コピーに失敗しました。",
       loadSettings: "設定の読み込みに失敗しました。",
       saveSettings: "設定の保存に失敗しました。",
-      loadDomain: "ドメインロジックの読み込みに失敗しました。"
+      loadDomain: "ドメインロジックの読み込みに失敗しました。",
+      titleTooLong: "タイトルが長すぎます（最大{max}文字）。",
+      contentTooLong: "本文が長すぎます（最大{max}文字）。",
+      tagNameTooLong: "タグ名が長すぎます（最大{max}文字）。",
+      tagCategoryTooLong: "カテゴリが長すぎます（最大{max}文字）。"
     },
     aria: {
       language: "言語",
@@ -224,7 +228,11 @@ const I18N = {
       copyFailed: "Failed to copy to clipboard.",
       loadSettings: "Failed to load settings.",
       saveSettings: "Failed to save settings.",
-      loadDomain: "Failed to load snippet domain logic."
+      loadDomain: "Failed to load snippet domain logic.",
+      titleTooLong: "Title is too long (max {max} characters).",
+      contentTooLong: "Content is too long (max {max} characters).",
+      tagNameTooLong: "Tag name is too long (max {max} characters).",
+      tagCategoryTooLong: "Category is too long (max {max} characters)."
     },
     aria: {
       language: "Language",
@@ -401,6 +409,23 @@ saveSnippetBtn.addEventListener("click", async () => {
     return;
   }
 
+  if (title.length > domain.LIMITS.TITLE) {
+    showErrorKey("error.titleTooLong", { max: domain.LIMITS.TITLE });
+    return;
+  }
+  if (content.length > domain.LIMITS.CONTENT) {
+    showErrorKey("error.contentTooLong", { max: domain.LIMITS.CONTENT });
+    return;
+  }
+  if (tagName.length > domain.LIMITS.TAG_NAME) {
+    showErrorKey("error.tagNameTooLong", { max: domain.LIMITS.TAG_NAME });
+    return;
+  }
+  if (tagCategory.length > domain.LIMITS.TAG_CATEGORY) {
+    showErrorKey("error.tagCategoryTooLong", { max: domain.LIMITS.TAG_CATEGORY });
+    return;
+  }
+
   const tagsArray = [];
   if (tagName) {
     tagsArray.push({ name: tagName, category: tagCategory || "general" });
@@ -534,7 +559,7 @@ importInput.addEventListener("change", (event) => {
 
       const existing = await getStoredSnippets();
       if (!existing) return;
-      const result = snippetDomain.mergeImportedSnippets(existing, parsed, Date.now(), mergeSnippets);
+      const result = domain.mergeImportedSnippets(existing, parsed, Date.now(), mergeSnippets);
       const saved = await setStoredSnippets(result.snippets);
       if (!saved) return;
 
@@ -572,7 +597,7 @@ languageSelect.addEventListener("change", async () => {
 });
 
 function sortSnippets(snippets) {
-  return snippetDomain.sortSnippets(snippets, currentSortBy, isDescending);
+  return domain.sortSnippets(snippets, currentSortBy, isDescending);
 }
 
 function displaySnippetsWithSort(snippets) {
@@ -581,7 +606,7 @@ function displaySnippetsWithSort(snippets) {
 
 function updateTagFilterOptions(snippets) {
   const currentSelection = filterTagsSelect.value;
-  const options = snippetDomain.buildTagFilterOptions(snippets);
+  const options = domain.buildTagFilterOptions(snippets);
 
   while (filterTagsSelect.options.length > 1) {
     filterTagsSelect.remove(1);
@@ -611,7 +636,7 @@ async function refreshCurrentView() {
 
   updateTagFilterOptions(storedSnippets);
 
-  const filteredSnippets = snippetDomain.filterSnippets(storedSnippets, {
+  const filteredSnippets = domain.filterSnippets(storedSnippets, {
     searchTerm: currentSearchTerm,
     favoritesOnly: isFavoritesOnly,
     selectedTag: filterTagsSelect.value
@@ -712,7 +737,7 @@ function createSnippetFavoriteBtn(snippet) {
 
 function createSnippetTags(snippet) {
   const tagContainer = document.createElement("div");
-  const tags = snippetDomain.getSnippetTags(snippet);
+  const tags = domain.getSnippetTags(snippet);
   tags.forEach((tag) => {
     const tagEl = document.createElement("span");
     tagEl.className = "tag";
@@ -801,16 +826,19 @@ function createEditForm(snippet) {
   editTitleInput.value = typeof snippet.title === "string" ? snippet.title : "";
   editTitleInput.placeholder = t("placeholder.title");
   editTitleInput.setAttribute("aria-label", t("aria.editTitle"));
+  editTitleInput.maxLength = domain.LIMITS.TITLE;
 
   const editTagNameInput = document.createElement("input");
   editTagNameInput.placeholder = t("placeholder.tagName");
   editTagNameInput.setAttribute("aria-label", t("aria.editTagName"));
+  editTagNameInput.maxLength = domain.LIMITS.TAG_NAME;
 
   const editTagCategoryInput = document.createElement("input");
   editTagCategoryInput.placeholder = t("placeholder.tagCategory");
   editTagCategoryInput.setAttribute("aria-label", t("aria.editTagCategory"));
+  editTagCategoryInput.maxLength = domain.LIMITS.TAG_CATEGORY;
 
-  const snippetTags = snippetDomain.getSnippetTags(snippet);
+  const snippetTags = domain.getSnippetTags(snippet);
   if (snippetTags.length > 0) {
     editTagNameInput.value = snippetTags[0].name || "";
     editTagCategoryInput.value = snippetTags[0].category || "";
@@ -820,6 +848,7 @@ function createEditForm(snippet) {
   editContentTextarea.value = typeof snippet.content === "string" ? snippet.content : "";
   editContentTextarea.placeholder = t("placeholder.content");
   editContentTextarea.setAttribute("aria-label", t("aria.editContent"));
+  editContentTextarea.maxLength = domain.LIMITS.CONTENT;
 
   const saveChangesBtn = document.createElement("button");
   saveChangesBtn.textContent = t("action.saveChanges");
@@ -832,9 +861,28 @@ function createEditForm(snippet) {
       return;
     }
 
+    if (nextTitle.length > domain.LIMITS.TITLE) {
+      showErrorKey("error.titleTooLong", { max: domain.LIMITS.TITLE });
+      return;
+    }
+    if (nextContent.length > domain.LIMITS.CONTENT) {
+      showErrorKey("error.contentTooLong", { max: domain.LIMITS.CONTENT });
+      return;
+    }
+
     const nextTagName = editTagNameInput.value.trim();
     const nextTagCategory = editTagCategoryInput.value.trim();
-    const otherTags = snippetDomain.getSnippetTags(snippet).slice(1);
+
+    if (nextTagName.length > domain.LIMITS.TAG_NAME) {
+      showErrorKey("error.tagNameTooLong", { max: domain.LIMITS.TAG_NAME });
+      return;
+    }
+    if (nextTagCategory.length > domain.LIMITS.TAG_CATEGORY) {
+      showErrorKey("error.tagCategoryTooLong", { max: domain.LIMITS.TAG_CATEGORY });
+      return;
+    }
+
+    const otherTags = domain.getSnippetTags(snippet).slice(1);
     const firstTag = nextTagName ? [{ name: nextTagName, category: nextTagCategory || "general" }] : [];
     const nextTags = [...firstTag, ...otherTags];
 
@@ -918,7 +966,7 @@ function displaySnippets(snippets) {
 }
 
 async function init() {
-  if (!snippetDomain) {
+  if (!domain) {
     showErrorKey("error.loadDomain");
     return;
   }
