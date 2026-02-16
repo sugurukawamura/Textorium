@@ -28,9 +28,13 @@ test("isValidImportedSnippet validates required fields and tag shape", () => {
     ...valid,
     tags: [{ category: "general" }]
   };
+  const invalidCreatedAt = { ...valid, createdAt: NaN };
+  const invalidUpdatedAt = { ...valid, updatedAt: Infinity };
 
   assert.strictEqual(isValidImportedSnippet(valid), true);
   assert.strictEqual(isValidImportedSnippet(invalidTagShape), false);
+  assert.strictEqual(isValidImportedSnippet(invalidCreatedAt), false);
+  assert.strictEqual(isValidImportedSnippet(invalidUpdatedAt), false);
 });
 
 test("normalizeImportedSnippet applies defaults and preserves extra fields", () => {
