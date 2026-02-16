@@ -44,8 +44,8 @@ function isValidImportedSnippet(snippet) {
   if (typeof snippet.id !== "string" || snippet.id.length === 0) return false;
   if (typeof snippet.title !== "string") return false;
   if (typeof snippet.content !== "string") return false;
-  if (typeof snippet.createdAt !== "number") return false;
-  if (typeof snippet.updatedAt !== "number") return false;
+  if (typeof snippet.createdAt !== "number" || !Number.isFinite(snippet.createdAt)) return false;
+  if (typeof snippet.updatedAt !== "number" || !Number.isFinite(snippet.updatedAt)) return false;
   if (snippet.tags !== undefined && (!Array.isArray(snippet.tags) || !snippet.tags.every(isValidImportedTag))) {
     return false;
   }
