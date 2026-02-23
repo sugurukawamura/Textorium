@@ -489,16 +489,9 @@ function createSnippetTags(snippet) {
   const tagContainer = document.createElement("div");
   const tags = domain.getSnippetTags(snippet);
   tags.forEach((tag) => {
-    if (!tag || typeof tag !== "object") return;
-    const name = typeof tag.name === "string" ? tag.name.trim() : "";
-    if (!name) return;
-    const category = typeof tag.category === "string" && tag.category.trim().length > 0
-      ? tag.category.trim()
-      : "general";
-
     const tagEl = document.createElement("span");
     tagEl.className = "tag";
-    tagEl.textContent = `${name} (${category})`;
+    tagEl.textContent = `${tag.name} (${tag.category || "general"})`;
     tagContainer.appendChild(tagEl);
   });
   return tagContainer;
