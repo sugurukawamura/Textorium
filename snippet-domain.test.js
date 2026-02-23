@@ -166,6 +166,28 @@ test("sortSnippets handles non-array input and keeps favorite sort stable across
   assert.deepStrictEqual(favoriteAsc, ["2", "3", "1"]);
 });
 
+test("sortSnippets handles null or non-object elements", () => {
+  const snippets = [
+    { id: "1", title: "B", createdAt: 10 },
+    null,
+    { id: "2", title: "A", createdAt: 20 }
+  ];
+
+  // Should not crash and should treat null as having default values (empty title, 0 createdAt)
+  const sorted = sortSnippets(snippets, "title", false);
+  assert.strictEqual(sorted.length, 3);
+  // null has "" title, "A" has "A", "B" has "B". ASC: null, A, B
+  assert.strictEqual(sorted[0], null);
+  assert.strictEqual(sorted[1].id, "2");
+  assert.strictEqual(sorted[2].id, "1");
+
+  const sortedCreated = sortSnippets(snippets, "createdAt", true);
+  // null has 0 createdAt, "1" has 10, "2" has 20. DESC: 2, 1, null
+  assert.strictEqual(sortedCreated[0].id, "2");
+  assert.strictEqual(sortedCreated[1].id, "1");
+  assert.strictEqual(sortedCreated[2], null);
+});
+
 test("mergeImportedSnippets returns added/updated/invalid counts and merged snippets", () => {
   const existing = [
     {

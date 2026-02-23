@@ -151,12 +151,15 @@ function sortSnippets(snippets, sortBy = "createdAt", isDescending = true) {
 
   sorted.sort((a, b) => {
     let comparison = 0;
-    const aTitle = typeof a.title === "string" ? a.title : "";
-    const bTitle = typeof b.title === "string" ? b.title : "";
-    const aCreatedAt = typeof a.createdAt === "number" ? a.createdAt : 0;
-    const bCreatedAt = typeof b.createdAt === "number" ? b.createdAt : 0;
-    const aUpdatedAt = typeof a.updatedAt === "number" ? a.updatedAt : 0;
-    const bUpdatedAt = typeof b.updatedAt === "number" ? b.updatedAt : 0;
+    const aSafe = (a && typeof a === "object") ? a : {};
+    const bSafe = (b && typeof b === "object") ? b : {};
+
+    const aTitle = typeof aSafe.title === "string" ? aSafe.title : "";
+    const bTitle = typeof bSafe.title === "string" ? bSafe.title : "";
+    const aCreatedAt = typeof aSafe.createdAt === "number" ? aSafe.createdAt : 0;
+    const bCreatedAt = typeof bSafe.createdAt === "number" ? bSafe.createdAt : 0;
+    const aUpdatedAt = typeof aSafe.updatedAt === "number" ? aSafe.updatedAt : 0;
+    const bUpdatedAt = typeof bSafe.updatedAt === "number" ? bSafe.updatedAt : 0;
 
     switch (sortBy) {
       case "title":
@@ -169,10 +172,10 @@ function sortSnippets(snippets, sortBy = "createdAt", isDescending = true) {
         comparison = aUpdatedAt - bUpdatedAt;
         break;
       case "favorite":
-        if (a.favorite === b.favorite) {
+        if (aSafe.favorite === bSafe.favorite) {
           comparison = bCreatedAt - aCreatedAt;
         } else {
-          comparison = (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0);
+          comparison = (bSafe.favorite ? 1 : 0) - (aSafe.favorite ? 1 : 0);
         }
         break;
       default:
