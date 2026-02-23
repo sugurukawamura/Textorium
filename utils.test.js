@@ -190,3 +190,25 @@ test('mergeSnippets falls back to current time when updatedAt override is invali
   assert.ok(merged.updatedAt >= before && merged.updatedAt <= after);
   assert.strictEqual(merged.createdAt, 50, 'Missing createdAt on one side should keep the existing timestamp');
 });
+
+test('mergeSnippets handles null or undefined inputs gracefully', () => {
+  const snippet = { id: 'id-1', title: 'A', content: 'A' };
+
+  // mergeSnippets(null, snippet) -> should return something like snippet
+  const merged1 = mergeSnippets(null, snippet);
+  assert.strictEqual(merged1.id, 'id-1');
+  assert.strictEqual(merged1.title, 'A');
+  assert.strictEqual(merged1.content, 'A');
+
+  // mergeSnippets(snippet, null) -> should return something like snippet
+  const merged2 = mergeSnippets(snippet, null);
+  assert.strictEqual(merged2.title, 'A');
+  assert.strictEqual(merged2.content, 'A');
+
+  // mergeSnippets(null, null) -> should return a safe empty object
+  const merged3 = mergeSnippets(null, null);
+  assert.ok(merged3);
+  assert.strictEqual(typeof merged3, 'object');
+  assert.deepStrictEqual(merged3.tags, []);
+  assert.strictEqual(merged3.favorite, false);
+});
