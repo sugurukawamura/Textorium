@@ -150,6 +150,18 @@ test("filterSnippets handles non-array input and colon-containing tag names", ()
   assert.strictEqual(filtered[0].id, "1");
 });
 
+test("filterSnippets gracefully handles null or undefined elements", () => {
+  const snippets = [
+    { id: "1", title: "Valid", favorite: true },
+    null,
+    undefined,
+    { id: "2", title: "Also Valid", favorite: false }
+  ];
+  const filtered = filterSnippets(snippets, { favoritesOnly: true });
+  assert.strictEqual(filtered.length, 1);
+  assert.strictEqual(filtered[0].id, "1");
+});
+
 test("sortSnippets handles non-array input and keeps favorite sort stable across direction", () => {
   assert.deepStrictEqual(sortSnippets(undefined, "title", true), []);
 

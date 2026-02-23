@@ -121,6 +121,10 @@ function filterSnippets(snippets, options = {}) {
   const selectedCategoryLower = parsedTag ? parsedTag.category.toLowerCase() : "";
 
   return ensureSnippetsArray(snippets).filter((snippet) => {
+    if (!snippet || typeof snippet !== "object") {
+      return false;
+    }
+
     if (favoritesOnly && !snippet.favorite) {
       return false;
     }
