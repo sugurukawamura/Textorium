@@ -172,7 +172,7 @@ function sortSnippets(snippets, sortBy = "createdAt", isDescending = true) {
 
     switch (sortBy) {
       case "title":
-        comparison = titleCollator.compare(aTitle, bTitle);
+        comparison = collator.compare(aTitle, bTitle);
         break;
       case "createdAt":
         comparison = aCreatedAt - bCreatedAt;
