@@ -93,7 +93,6 @@ Rules:
 - `utils.js`: helpers (`generateId`, merge policy)
 - `utils.test.js`: unit tests for utilities
 - `snippet-domain.test.js`: unit tests for domain logic
-- `background.js`: minimal service worker
 
 ## 6. Testing
 
