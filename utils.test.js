@@ -196,6 +196,7 @@ test('mergeSnippets handles null or undefined inputs gracefully', () => {
 
   // mergeSnippets(null, snippet) -> should return something like snippet
   const merged1 = mergeSnippets(null, snippet);
+  assert.strictEqual(merged1.id, 'id-1');
   assert.strictEqual(merged1.title, 'A');
   assert.strictEqual(merged1.content, 'A');
 
