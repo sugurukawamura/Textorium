@@ -149,6 +149,11 @@ function filterSnippets(snippets, options = {}) {
 function sortSnippets(snippets, sortBy = "createdAt", isDescending = true) {
   const sorted = [...ensureSnippetsArray(snippets)];
 
+  let collator;
+  if (sortBy === "title") {
+    collator = new Intl.Collator(undefined, { sensitivity: "accent", usage: "sort" });
+  }
+
   sorted.sort((a, b) => {
     let comparison = 0;
     const aTitle = typeof a.title === "string" ? a.title : "";
@@ -160,7 +165,7 @@ function sortSnippets(snippets, sortBy = "createdAt", isDescending = true) {
 
     switch (sortBy) {
       case "title":
-        comparison = aTitle.toLowerCase().localeCompare(bTitle.toLowerCase());
+        comparison = collator.compare(aTitle, bTitle);
         break;
       case "createdAt":
         comparison = aCreatedAt - bCreatedAt;
