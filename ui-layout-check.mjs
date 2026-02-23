@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { chromium } from "playwright";
 
 const ROOT_DIR = process.cwd();
@@ -12,9 +13,8 @@ const VIEWPORTS = [
   { width: 420, height: 700 }
 ];
 
-function fileUrlForWindows(filePath) {
-  const normalized = filePath.replace(/\\/g, "/");
-  return `file:///${normalized}`;
+function fileUrl(filePath) {
+  return pathToFileURL(filePath).href;
 }
 
 async function run() {
@@ -27,7 +27,7 @@ async function run() {
     for (const viewport of VIEWPORTS) {
       const context = await browser.newContext({ viewport });
       const page = await context.newPage();
-      await page.goto(fileUrlForWindows(POPUP_FILE));
+      await page.goto(fileUrl(POPUP_FILE));
       await page.waitForTimeout(150);
 
       const metrics = await page.evaluate(() => {

@@ -1,4 +1,5 @@
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { chromium } from "playwright";
 
 const ROOT_DIR = process.cwd();
@@ -7,8 +8,7 @@ const ARTIFACT_DIR = path.join(ROOT_DIR, "docs", "images");
 
 // Ensure correct file protocol for Windows compatibility (if needed)
 function fileUrl(filePath) {
-  const normalized = filePath.replace(/\\/g, "/");
-  return `file:///${normalized}`;
+  return pathToFileURL(filePath).href;
 }
 
 const MOCK_SNIPPETS = [
