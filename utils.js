@@ -13,6 +13,8 @@ function generateId() {
  * Merge policy for same ID: prefer newer updatedAt, OR favorite, union tags.
  */
 function mergeSnippets(a, b, updatedAt = Date.now()) {
+  a = a || {};
+  b = b || {};
   const now = Date.now();
   const newer = (b.updatedAt || 0) >= (a.updatedAt || 0) ? b : a;
   const mergedFields = newer === b ? { ...a, ...b } : { ...b, ...a };
