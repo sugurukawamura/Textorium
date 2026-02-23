@@ -7,11 +7,21 @@
  */
 function generateId() {
   const chars = "0123456789abcdefghijklmnopqrstuvwxyz";
-  const bytes = new Uint8Array(9);
-  crypto.getRandomValues(bytes);
   let id = "";
-  for (let i = 0; i < bytes.length; i++) {
-    id += chars[bytes[i] % 36];
+  // Use a buffer and rejection sampling to generate an unbiased random ID.
+  const buffer = new Uint8Array(16);
+  let cursor = buffer.length;
+  while (id.length < 9) {
+    if (cursor === buffer.length) {
+      crypto.getRandomValues(buffer);
+      cursor = 0;
+    }
+    const byte = buffer[cursor++];
+    // 252 is the largest multiple of 36 <= 255.
+    // This check avoids modulo bias.
+    if (byte < 252) {
+      id += chars[byte % 36];
+    }
   }
   return "id-" + id;
 }
