@@ -57,7 +57,7 @@ function mergeSnippets(a, b, updatedAt = Date.now()) {
 
   return {
     ...mergedFields,
-    id: a.id,
+    id: a.id || b.id,
     createdAt: Math.min(createdAtA, createdAtB),
     updatedAt: nextUpdatedAt,
     favorite: (a.favorite ?? false) || (b.favorite ?? false),
