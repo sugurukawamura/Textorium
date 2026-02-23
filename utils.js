@@ -6,7 +6,14 @@
  * Generate a simple unique ID.
  */
 function generateId() {
-  return "id-" + Math.random().toString(36).slice(2, 11);
+  const chars = "0123456789abcdefghijklmnopqrstuvwxyz";
+  const bytes = new Uint8Array(9);
+  crypto.getRandomValues(bytes);
+  let id = "";
+  for (let i = 0; i < bytes.length; i++) {
+    id += chars[bytes[i] % 36];
+  }
+  return "id-" + id;
 }
 
 /**
