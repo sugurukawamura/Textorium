@@ -27,7 +27,7 @@ const statusMessage = document.getElementById("statusMessage");
 
 const snippetList = document.getElementById("snippetList");
 const themeToggleBtn = document.getElementById("themeToggleBtn");
-const snippetDomain = window.SnippetDomain;
+const domain = window.SnippetDomain;
 
 const SETTINGS_KEY = "settings";
 const STATUS_DISPLAY_MS = 2500;
@@ -260,6 +260,7 @@ const I18N = {
 };
 
 // Global UI state
+let allSnippets = [];
 let currentSortBy = "createdAt";
 let isDescending = true;
 let currentSearchTerm = "";
@@ -416,12 +417,10 @@ saveSnippetBtn.addEventListener("click", async () => {
     favorite: false
   };
 
-  const storedSnippets = await getStoredSnippets();
-  if (!storedSnippets) return;
-
-  storedSnippets.push(newSnippet);
-  const saved = await setStoredSnippets(storedSnippets);
+  const nextSnippets = [...allSnippets, newSnippet];
+  const saved = await setStoredSnippets(nextSnippets);
   if (!saved) return;
+  allSnippets = nextSnippets;
 
   titleInput.value = "";
   tagNameInput.value = "";
@@ -506,8 +505,7 @@ applySortBtn.addEventListener("click", async () => {
 });
 
 exportBtn.addEventListener("click", async () => {
-  const snippets = await getStoredSnippets();
-  if (!snippets) return;
+  const snippets = allSnippets;
 
   const dataStr = JSON.stringify(snippets, null, 2);
   const blob = new Blob([dataStr], { type: "application/json" });
@@ -532,11 +530,11 @@ importInput.addEventListener("change", (event) => {
       const parsed = JSON.parse(e.target.result);
       if (!Array.isArray(parsed)) throw new Error("Invalid JSON structure");
 
-      const existing = await getStoredSnippets();
-      if (!existing) return;
-      const result = snippetDomain.mergeImportedSnippets(existing, parsed, Date.now(), mergeSnippets);
-      const saved = await setStoredSnippets(result.snippets);
+      const result = domain.mergeImportedSnippets(allSnippets, parsed, Date.now(), mergeSnippets);
+      const nextSnippets = result.snippets;
+      const saved = await setStoredSnippets(nextSnippets);
       if (!saved) return;
+      allSnippets = nextSnippets;
 
       await refreshCurrentView();
       showStatusKey("status.importFinished", {
@@ -572,7 +570,7 @@ languageSelect.addEventListener("change", async () => {
 });
 
 function sortSnippets(snippets) {
-  return snippetDomain.sortSnippets(snippets, currentSortBy, isDescending);
+  return domain.sortSnippets(snippets, currentSortBy, isDescending);
 }
 
 function displaySnippetsWithSort(snippets) {
@@ -581,7 +579,7 @@ function displaySnippetsWithSort(snippets) {
 
 function updateTagFilterOptions(snippets) {
   const currentSelection = filterTagsSelect.value;
-  const options = snippetDomain.buildTagFilterOptions(snippets);
+  const options = domain.buildTagFilterOptions(snippets);
 
   while (filterTagsSelect.options.length > 1) {
     filterTagsSelect.remove(1);
@@ -606,12 +604,9 @@ function updateTagFilterOptions(snippets) {
 }
 
 async function refreshCurrentView() {
-  const storedSnippets = await getStoredSnippets();
-  if (!storedSnippets) return;
+  updateTagFilterOptions(allSnippets);
 
-  updateTagFilterOptions(storedSnippets);
-
-  const filteredSnippets = snippetDomain.filterSnippets(storedSnippets, {
+  const filteredSnippets = domain.filterSnippets(allSnippets, {
     searchTerm: currentSearchTerm,
     favoritesOnly: isFavoritesOnly,
     selectedTag: filterTagsSelect.value
@@ -647,24 +642,30 @@ async function setStoredSnippets(snippets) {
 }
 
 async function updateSnippetInStorage(updatedSnippet) {
-  const storedSnippets = await getStoredSnippets();
-  if (!storedSnippets) return false;
-
-  const index = storedSnippets.findIndex((snippet) => snippet.id === updatedSnippet.id);
+  const index = allSnippets.findIndex((snippet) => snippet.id === updatedSnippet.id);
   if (index === -1) {
     showStatusKey("error.snippetNotFound", "error");
     return false;
   }
 
-  storedSnippets[index] = updatedSnippet;
-  return setStoredSnippets(storedSnippets);
+  const nextSnippets = [...allSnippets];
+  nextSnippets[index] = updatedSnippet;
+  const saved = await setStoredSnippets(nextSnippets);
+  if (saved) {
+    allSnippets = nextSnippets;
+    return true;
+  }
+  return false;
 }
 
 async function deleteSnippetFromStorage(snippetId) {
-  const storedSnippets = await getStoredSnippets();
-  if (!storedSnippets) return false;
-  const updatedSnippets = storedSnippets.filter((snippet) => snippet.id !== snippetId);
-  return setStoredSnippets(updatedSnippets);
+  const nextSnippets = allSnippets.filter((snippet) => snippet.id !== snippetId);
+  const saved = await setStoredSnippets(nextSnippets);
+  if (saved) {
+    allSnippets = nextSnippets;
+    return true;
+  }
+  return false;
 }
 
 function renderSnippetItem(snippet) {
@@ -712,7 +713,7 @@ function createSnippetFavoriteBtn(snippet) {
 
 function createSnippetTags(snippet) {
   const tagContainer = document.createElement("div");
-  const tags = snippetDomain.getSnippetTags(snippet);
+  const tags = domain.getSnippetTags(snippet);
   tags.forEach((tag) => {
     const tagEl = document.createElement("span");
     tagEl.className = "tag";
@@ -810,7 +811,7 @@ function createEditForm(snippet) {
   editTagCategoryInput.placeholder = t("placeholder.tagCategory");
   editTagCategoryInput.setAttribute("aria-label", t("aria.editTagCategory"));
 
-  const snippetTags = snippetDomain.getSnippetTags(snippet);
+  const snippetTags = domain.getSnippetTags(snippet);
   if (snippetTags.length > 0) {
     editTagNameInput.value = snippetTags[0].name || "";
     editTagCategoryInput.value = snippetTags[0].category || "";
@@ -834,7 +835,7 @@ function createEditForm(snippet) {
 
     const nextTagName = editTagNameInput.value.trim();
     const nextTagCategory = editTagCategoryInput.value.trim();
-    const otherTags = snippetDomain.getSnippetTags(snippet).slice(1);
+    const otherTags = domain.getSnippetTags(snippet).slice(1);
     const firstTag = nextTagName ? [{ name: nextTagName, category: nextTagCategory || "general" }] : [];
     const nextTags = [...firstTag, ...otherTags];
 
@@ -918,11 +919,12 @@ function displaySnippets(snippets) {
 }
 
 async function init() {
-  if (!snippetDomain) {
+  if (!domain) {
     showStatusKey("error.loadDomain", "error");
     return;
   }
   await applyInitialSettings();
+  allSnippets = await getStoredSnippets() || [];
   await refreshCurrentView();
 }
 
