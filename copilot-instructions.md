@@ -2,7 +2,7 @@
 
 ## プロジェクト概要
 - これは **Chrome 拡張 (Manifest V3)** のローカルスニペット管理ツールです。
-- 主要ファイル: `manifest.json`, `popup.html`, `popup.js`, `background.js`
+- 主要ファイル: `manifest.json`, `popup.html`, `popup.js`
 - 依存なし（バンドラ無しのプレーン JS/HTML/CSS）。データは **chrome.storage.local** に保存。
 
 ## データモデル（厳守）

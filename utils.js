@@ -6,13 +6,32 @@
  * Generate a simple unique ID.
  */
 function generateId() {
-  return "id-" + Math.random().toString(36).slice(2, 11);
+  const chars = "0123456789abcdefghijklmnopqrstuvwxyz";
+  let id = "";
+  // Use a buffer and rejection sampling to generate an unbiased random ID.
+  const buffer = new Uint8Array(16);
+  let cursor = buffer.length;
+  while (id.length < 9) {
+    if (cursor === buffer.length) {
+      crypto.getRandomValues(buffer);
+      cursor = 0;
+    }
+    const byte = buffer[cursor++];
+    // 252 is the largest multiple of 36 <= 255.
+    // This check avoids modulo bias.
+    if (byte < 252) {
+      id += chars[byte % 36];
+    }
+  }
+  return "id-" + id;
 }
 
 /**
  * Merge policy for same ID: prefer newer updatedAt, OR favorite, union tags.
  */
 function mergeSnippets(a, b, updatedAt = Date.now()) {
+  a = a || {};
+  b = b || {};
   const now = Date.now();
   const newer = (b.updatedAt || 0) >= (a.updatedAt || 0) ? b : a;
   const mergedFields = newer === b ? { ...a, ...b } : { ...b, ...a };
@@ -38,7 +57,7 @@ function mergeSnippets(a, b, updatedAt = Date.now()) {
 
   return {
     ...mergedFields,
-    id: a.id,
+    id: a.id || b.id,
     createdAt: Math.min(createdAtA, createdAtB),
     updatedAt: nextUpdatedAt,
     favorite: (a.favorite ?? false) || (b.favorite ?? false),

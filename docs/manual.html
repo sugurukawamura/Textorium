@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Textorium User Manual / ユーザーマニュアル</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --text: #333333;
+      --link: #0066cc;
+      --code-bg: #f4f4f4;
+      --border: #dddddd;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1a1a1a;
+        --text: #e0e0e0;
+        --link: #66b3ff;
+        --code-bg: #333333;
+        --border: #444444;
+      }
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+      color: var(--text);
+      background-color: var(--bg);
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h1, h2, h3 {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 10px;
+    }
+    a {
+      color: var(--link);
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    code {
+      background-color: var(--code-bg);
+      padding: 2px 4px;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+    .lang-en {
+      color: #666;
+      font-size: 0.9em;
+      margin-bottom: 1em;
+      display: block;
+    }
+    @media (prefers-color-scheme: dark) {
+      .lang-en {
+        color: #aaa;
+      }
+    }
+    .screenshot {
+      max-width: 100%;
+      height: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin: 20px 0;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .note {
+      background-color: var(--code-bg);
+      padding: 10px;
+      border-left: 4px solid var(--link);
+      margin: 10px 0;
+    }
+    nav ul {
+      list-style: none;
+      padding: 0;
+    }
+    nav li {
+      margin-bottom: 5px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Textorium User Manual / ユーザーマニュアル</h1>
+
+  <p>Textoriumは、ローカルでテキストスニペットを管理するためのChrome拡張機能です。<br>
+  Textorium is a Chrome extension for managing text snippets locally.</p>
+
+  <nav>
+    <h2>Table of Contents / 目次</h2>
+    <ul>
+      <li><a href="#installation">1. Installation / インストール</a></li>
+      <li><a href="#creating">2. Creating Snippets / スニペットの作成</a></li>
+      <li><a href="#viewing">3. Viewing & Searching / 閲覧と検索</a></li>
+      <li><a href="#backup">4. Backup & Restore / バックアップと復元</a></li>
+    </ul>
+  </nav>
+
+  <section id="installation">
+    <h2>1. Installation / インストール</h2>
+    <p>
+      Chrome拡張機能管理ページ（<code>chrome://extensions</code>）を開き、「デベロッパーモード」を有効にして、「パッケージ化されていない拡張機能を読み込む」からこのフォルダを選択します。
+    </p>
+    <p class="lang-en">
+      Open Chrome extensions page (<code>chrome://extensions</code>), enable "Developer mode", click "Load unpacked", and select this folder.
+    </p>
+  </section>
+
+  <section id="creating">
+    <h2>2. Creating Snippets / スニペットの作成</h2>
+    <p>
+      画面上部のフォームにタイトルと本文を入力し、「保存」ボタンをクリックします。タグやカテゴリを追加して整理することもできます。
+    </p>
+    <p class="lang-en">
+      Enter a title and content in the form at the top, then click "Save". You can also add tags and categories for organization.
+    </p>
+    <img src="images/01-create.svg" alt="Create Snippet Screen" class="screenshot">
+  </section>
+
+  <section id="viewing">
+    <h2>3. Viewing & Searching / 閲覧と検索</h2>
+    <p>
+      保存されたスニペットはリスト形式で表示されます。検索バーを使ってキーワードで絞り込んだり、タグでフィルタリングしたりできます。
+    </p>
+    <p class="lang-en">
+      Saved snippets are displayed in a list. You can filter them by keyword using the search bar or by tags.
+    </p>
+    <img src="images/02-list.svg" alt="Snippet List Screen" class="screenshot">
+
+    <h3>Searching / 検索</h3>
+    <p>
+      タイトル、本文、タグに含まれるテキストで検索できます。
+    </p>
+    <p class="lang-en">
+      You can search by text included in the title, content, or tags.
+    </p>
+    <img src="images/03-search.svg" alt="Search Screen" class="screenshot">
+  </section>
+
+  <section id="backup">
+    <h2>4. Backup & Restore / バックアップと復元</h2>
+    <p>
+      「バックアップ/復元」セクションを展開すると、スニペットデータをJSON形式でエクスポートしたり、以前のバックアップから復元したりできます。
+    </p>
+    <p class="lang-en">
+      Expand the "Backup / Restore" section to export snippet data as JSON or restore from a previous backup.
+    </p>
+    <img src="images/04-backup.svg" alt="Backup Screen" class="screenshot">
+  </section>
+
+  <footer>
+    <p>&copy; 2024 Textorium Team</p>
+  </footer>
+
+</body>
+</html>

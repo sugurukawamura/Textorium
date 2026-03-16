@@ -9,6 +9,8 @@ Textorium is a Chrome extension (Manifest V3) for local text snippet management.
 
 ## 1. 使い方 (日本語)
 
+詳細な図解マニュアルは [docs/manual.html](docs/manual.html) を参照してください。
+
 ### インストール
 
 1. Chrome で `chrome://extensions` を開く
@@ -38,6 +40,8 @@ Textorium is a Chrome extension (Manifest V3) for local text snippet management.
   - `Esc` でキャンセル
 
 ## 2. Quick Start (English)
+
+See [docs/manual.html](docs/manual.html) for a detailed manual with screenshots.
 
 1. Open `chrome://extensions` and enable Developer mode.
 2. Click `Load unpacked` and select this repository root.
@@ -89,7 +93,6 @@ Rules:
 - `utils.js`: helpers (`generateId`, merge policy)
 - `utils.test.js`: unit tests for utilities
 - `snippet-domain.test.js`: unit tests for domain logic
-- `background.js`: minimal service worker
 
 ## 6. Testing
 
@@ -103,6 +106,14 @@ Rules:
 - Command: `npm run test:ui`
 - Runs Playwright headless checks on `popup.html` at multiple viewport sizes
 - Detects horizontal overflow/clipping and saves screenshots to `artifacts/ui-layout/`
+
+### Manual Screenshots
+
+To regenerate screenshots for the manual (requires Playwright):
+
+```bash
+node scripts/generate-manual-screenshots.mjs
+```
 
 ### PATH troubleshooting (Windows)
 

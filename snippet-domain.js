@@ -44,8 +44,8 @@ function isValidImportedSnippet(snippet) {
   if (typeof snippet.id !== "string" || snippet.id.length === 0) return false;
   if (typeof snippet.title !== "string") return false;
   if (typeof snippet.content !== "string") return false;
-  if (typeof snippet.createdAt !== "number") return false;
-  if (typeof snippet.updatedAt !== "number") return false;
+  if (typeof snippet.createdAt !== "number" || !Number.isFinite(snippet.createdAt)) return false;
+  if (typeof snippet.updatedAt !== "number" || !Number.isFinite(snippet.updatedAt)) return false;
   if (snippet.tags !== undefined && (!Array.isArray(snippet.tags) || !snippet.tags.every(isValidImportedTag))) {
     return false;
   }
@@ -67,10 +67,14 @@ function buildTagFilterOptions(snippets) {
   ensureSnippetsArray(snippets).forEach((snippet) => {
     const tags = getSnippetTags(snippet);
     tags.forEach((tag) => {
-      const normalizedTag = normalizeTag(tag);
-      if (!normalizedTag) return;
-      if (!tagsMap.has(normalizedTag.key)) {
-        tagsMap.set(normalizedTag.key, `${normalizedTag.name} (${normalizedTag.category})`);
+      if (!tag || typeof tag !== "object") return;
+      const name = typeof tag.name === "string" ? tag.name.trim() : "";
+      if (!name) return;
+      const rawCategory = typeof tag.category === "string" ? tag.category.trim() : "";
+      const category = rawCategory || "general";
+      const key = `${name.toLowerCase()}:${category.toLowerCase()}`;
+      if (!tagsMap.has(key)) {
+        tagsMap.set(key, `${name} (${category})`);
       }
     });
   });
@@ -96,10 +100,13 @@ function includesSearchText(snippet, searchTerm) {
   const inTitle = title.toLowerCase().includes(searchTerm);
   const inContent = content.toLowerCase().includes(searchTerm);
   const inTags = getSnippetTags(snippet).some((tag) => {
-    const normalizedTag = normalizeTag(tag);
-    if (!normalizedTag) return false;
-    return normalizedTag.name.toLowerCase().includes(searchTerm) ||
-      normalizedTag.category.toLowerCase().includes(searchTerm);
+    if (!tag || typeof tag !== "object") return false;
+    const name = typeof tag.name === "string" ? tag.name.trim() : "";
+    if (!name) return false;
+    if (name.toLowerCase().includes(searchTerm)) return true;
+    const rawCategory = typeof tag.category === "string" ? tag.category.trim() : "";
+    const category = rawCategory || "general";
+    return category.toLowerCase().includes(searchTerm);
   });
   return inTitle || inContent || inTags;
 }
@@ -110,16 +117,27 @@ function filterSnippets(snippets, options = {}) {
   const selectedTag = typeof options.selectedTag === "string" ? options.selectedTag : "";
 
   const parsedTag = parseTagSelection(selectedTag);
+  const selectedNameLower = parsedTag ? parsedTag.name.toLowerCase() : "";
+  const selectedCategoryLower = parsedTag ? parsedTag.category.toLowerCase() : "";
 
   return ensureSnippetsArray(snippets).filter((snippet) => {
+    if (!snippet || typeof snippet !== "object") {
+      return false;
+    }
+
     if (favoritesOnly && !snippet.favorite) {
       return false;
     }
 
     if (parsedTag) {
       const hasTag = getSnippetTags(snippet).some((tag) => {
-        const normalizedTag = normalizeTag(tag);
-        return normalizedTag && normalizedTag.key === parsedTag.key;
+        if (!tag || typeof tag !== "object") return false;
+        const name = typeof tag.name === "string" ? tag.name.trim() : "";
+        if (!name) return false;
+        const rawCategory = typeof tag.category === "string" ? tag.category.trim() : "";
+        const category = rawCategory || "general";
+        return name.toLowerCase() === selectedNameLower &&
+          category.toLowerCase() === selectedCategoryLower;
       });
       if (!hasTag) return false;
     }
@@ -135,18 +153,26 @@ function filterSnippets(snippets, options = {}) {
 function sortSnippets(snippets, sortBy = "createdAt", isDescending = true) {
   const sorted = [...ensureSnippetsArray(snippets)];
 
+  let collator;
+  if (sortBy === "title") {
+    collator = new Intl.Collator(undefined, { sensitivity: "accent", usage: "sort" });
+  }
+
   sorted.sort((a, b) => {
     let comparison = 0;
-    const aTitle = typeof a.title === "string" ? a.title : "";
-    const bTitle = typeof b.title === "string" ? b.title : "";
-    const aCreatedAt = typeof a.createdAt === "number" ? a.createdAt : 0;
-    const bCreatedAt = typeof b.createdAt === "number" ? b.createdAt : 0;
-    const aUpdatedAt = typeof a.updatedAt === "number" ? a.updatedAt : 0;
-    const bUpdatedAt = typeof b.updatedAt === "number" ? b.updatedAt : 0;
+    const aSafe = (a && typeof a === "object") ? a : {};
+    const bSafe = (b && typeof b === "object") ? b : {};
+
+    const aTitle = typeof aSafe.title === "string" ? aSafe.title : "";
+    const bTitle = typeof bSafe.title === "string" ? bSafe.title : "";
+    const aCreatedAt = typeof aSafe.createdAt === "number" ? aSafe.createdAt : 0;
+    const bCreatedAt = typeof bSafe.createdAt === "number" ? bSafe.createdAt : 0;
+    const aUpdatedAt = typeof aSafe.updatedAt === "number" ? aSafe.updatedAt : 0;
+    const bUpdatedAt = typeof bSafe.updatedAt === "number" ? bSafe.updatedAt : 0;
 
     switch (sortBy) {
       case "title":
-        comparison = aTitle.toLowerCase().localeCompare(bTitle.toLowerCase());
+        comparison = collator.compare(aTitle, bTitle);
         break;
       case "createdAt":
         comparison = aCreatedAt - bCreatedAt;
@@ -155,10 +181,10 @@ function sortSnippets(snippets, sortBy = "createdAt", isDescending = true) {
         comparison = aUpdatedAt - bUpdatedAt;
         break;
       case "favorite":
-        if (a.favorite === b.favorite) {
+        if (aSafe.favorite === bSafe.favorite) {
           comparison = bCreatedAt - aCreatedAt;
         } else {
-          comparison = (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0);
+          comparison = (bSafe.favorite ? 1 : 0) - (aSafe.favorite ? 1 : 0);
         }
         break;
       default:
