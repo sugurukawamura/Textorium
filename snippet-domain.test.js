@@ -52,7 +52,7 @@ test("normalizeImportedSnippet applies defaults and preserves extra fields", () 
 
   assert.strictEqual(normalized.updatedAt, 100);
   assert.strictEqual(normalized.favorite, false);
-  assert.deepStrictEqual(normalized.tags, [{ name: "work", category: "general" }]);
+  assert.deepStrictEqual(normalized.tags, [{ name: "work", category: "general", key: "work:general" }]);
   assert.deepStrictEqual(normalized.extra, { keep: true });
 });
 
