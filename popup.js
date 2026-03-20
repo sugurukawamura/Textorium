@@ -697,6 +697,7 @@ function displaySnippets(snippets) {
 async function init() {
   if (!domain) {
     showErrorKey("error.loadDomain");
+    showStatusKey("error.loadDomain", "error");
     return;
   }
   await applyInitialSettings();
