@@ -1,6 +1,41 @@
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { generateId, mergeSnippets } = require('./utils.js');
+const { generateId, mergeSnippets, normalizeTagForMerge } = require('./utils.js');
+
+test('normalizeTagForMerge normalizes valid tags', () => {
+  const tag = { name: '  Work  ', category: '  Job  ' };
+  const normalized = normalizeTagForMerge(tag);
+  assert.deepStrictEqual(normalized, { name: 'Work', category: 'Job' });
+});
+
+test('normalizeTagForMerge defaults category to general', () => {
+  const tag1 = { name: 'Work' };
+  assert.strictEqual(normalizeTagForMerge(tag1).category, 'general');
+
+  const tag2 = { name: 'Work', category: '  ' };
+  assert.strictEqual(normalizeTagForMerge(tag2).category, 'general');
+
+  const tag3 = { name: 'Work', category: 123 }; // Non-string category
+  assert.strictEqual(normalizeTagForMerge(tag3).category, 'general');
+});
+
+test('normalizeTagForMerge returns null for invalid inputs', () => {
+  assert.strictEqual(normalizeTagForMerge(null), null);
+  assert.strictEqual(normalizeTagForMerge(undefined), null);
+  assert.strictEqual(normalizeTagForMerge('not an object'), null);
+  assert.strictEqual(normalizeTagForMerge({}), null, 'Missing name');
+  assert.strictEqual(normalizeTagForMerge({ name: '  ' }), null, 'Empty name');
+  assert.strictEqual(normalizeTagForMerge({ name: 123 }), null, 'Non-string name');
+});
+
+test('normalizeTagForMerge preserves extra fields', () => {
+  const tag = { name: 'Work', extra: 'field', id: 1 };
+  const normalized = normalizeTagForMerge(tag);
+  assert.strictEqual(normalized.extra, 'field');
+  assert.strictEqual(normalized.id, 1);
+  assert.strictEqual(normalized.name, 'Work');
+  assert.strictEqual(normalized.category, 'general');
+});
 
 test('generateId format', () => {
   const id = generateId();
