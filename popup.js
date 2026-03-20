@@ -635,6 +635,8 @@ function updateTagFilterOptions(snippets) {
 async function refreshCurrentView() {
   updateTagFilterOptions(allSnippets);
 
+  updateTagFilterOptions(allSnippets);
+
   const filteredSnippets = domain.filterSnippets(storedSnippets, {
   const filteredSnippets = domain.filterSnippets(allSnippets, {
     searchTerm: currentSearchTerm,
