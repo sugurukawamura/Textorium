@@ -3,6 +3,17 @@
  * This file intentionally avoids DOM/chrome APIs so it can be unit tested.
  */
 
+let utils;
+if (typeof require !== "undefined") {
+  utils = require("./utils.js");
+}
+const LIMITS = {
+  TITLE: 200,
+  CONTENT: 10000,
+  TAG_NAME: 50,
+  TAG_CATEGORY: 50
+};
+
 function getSnippetTags(snippet) {
   return Array.isArray(snippet?.tags) ? snippet.tags : [];
 }
@@ -11,37 +22,40 @@ function ensureSnippetsArray(snippets) {
   return Array.isArray(snippets) ? snippets : [];
 }
 
-function normalizeTag(tag) {
-  if (!tag || typeof tag !== "object") return null;
-  const name = typeof tag.name === "string" ? tag.name.trim() : "";
-  if (!name) return null;
-  const rawCategory = typeof tag.category === "string" ? tag.category.trim() : "";
-  const category = rawCategory || "general";
-  const key = `${name.toLowerCase()}:${category.toLowerCase()}`;
-  return { name, category, key };
+function internalNormalizeTag(tag) {
+  if (typeof utils !== "undefined" && utils.normalizeTag) {
+    return utils.normalizeTag(tag);
+  }
+  if (typeof normalizeTag === "function") {
+    return normalizeTag(tag);
+  }
+  return null;
 }
 
 function isValidImportedTag(tag) {
+  return !!internalNormalizeTag(tag);
   return !!tag &&
     typeof tag === "object" &&
     typeof tag.name === "string" &&
     tag.name.trim().length > 0 &&
-    (tag.category === undefined || typeof tag.category === "string");
+    tag.name.length <= LIMITS.TAG_NAME &&
+    (tag.category === undefined || (typeof tag.category === "string" && tag.category.length <= LIMITS.TAG_CATEGORY));
 }
 
 function normalizeSnippetTags(tags) {
   if (!Array.isArray(tags)) return [];
   return tags
-    .filter(isValidImportedTag)
-    .map((tag) => ({
-      ...tag,
-      category: tag.category && tag.category.trim().length > 0 ? tag.category : "general"
-    }));
+    .map(internalNormalizeTag)
+    .filter((tag) => !!tag);
 }
 
 function isValidImportedSnippet(snippet) {
   if (!snippet || typeof snippet !== "object") return false;
   if (typeof snippet.id !== "string" || snippet.id.length === 0) return false;
+  if (typeof snippet.title !== "string" || snippet.title.length > LIMITS.TITLE) return false;
+  if (typeof snippet.content !== "string" || snippet.content.length > LIMITS.CONTENT) return false;
+  if (typeof snippet.createdAt !== "number") return false;
+  if (typeof snippet.updatedAt !== "number") return false;
   if (typeof snippet.title !== "string") return false;
   if (typeof snippet.content !== "string") return false;
   if (typeof snippet.createdAt !== "number" || !Number.isFinite(snippet.createdAt)) return false;
@@ -67,14 +81,9 @@ function buildTagFilterOptions(snippets) {
   ensureSnippetsArray(snippets).forEach((snippet) => {
     const tags = getSnippetTags(snippet);
     tags.forEach((tag) => {
-      if (!tag || typeof tag !== "object") return;
-      const name = typeof tag.name === "string" ? tag.name.trim() : "";
-      if (!name) return;
-      const rawCategory = typeof tag.category === "string" ? tag.category.trim() : "";
-      const category = rawCategory || "general";
-      const key = `${name.toLowerCase()}:${category.toLowerCase()}`;
-      if (!tagsMap.has(key)) {
-        tagsMap.set(key, `${name} (${category})`);
+      const normalized = internalNormalizeTag(tag);
+      if (normalized && !tagsMap.has(normalized.key)) {
+        tagsMap.set(normalized.key, `${normalized.name} (${normalized.category})`);
       }
     });
   });
@@ -91,7 +100,7 @@ function parseTagSelection(selectedTag) {
   const lastColonIndex = selectedTag.lastIndexOf(":");
   const name = lastColonIndex > -1 ? selectedTag.substring(0, lastColonIndex) : selectedTag;
   const category = lastColonIndex > -1 ? selectedTag.substring(lastColonIndex + 1) : "";
-  return normalizeTag({ name, category });
+  return internalNormalizeTag({ name, category });
 }
 
 function includesSearchText(snippet, searchTerm) {
@@ -100,13 +109,10 @@ function includesSearchText(snippet, searchTerm) {
   const inTitle = title.toLowerCase().includes(searchTerm);
   const inContent = content.toLowerCase().includes(searchTerm);
   const inTags = getSnippetTags(snippet).some((tag) => {
-    if (!tag || typeof tag !== "object") return false;
-    const name = typeof tag.name === "string" ? tag.name.trim() : "";
-    if (!name) return false;
-    if (name.toLowerCase().includes(searchTerm)) return true;
-    const rawCategory = typeof tag.category === "string" ? tag.category.trim() : "";
-    const category = rawCategory || "general";
-    return category.toLowerCase().includes(searchTerm);
+    const normalized = internalNormalizeTag(tag);
+    if (!normalized) return false;
+    return normalized.name.toLowerCase().includes(searchTerm) ||
+      normalized.category.toLowerCase().includes(searchTerm);
   });
   return inTitle || inContent || inTags;
 }
@@ -117,8 +123,6 @@ function filterSnippets(snippets, options = {}) {
   const selectedTag = typeof options.selectedTag === "string" ? options.selectedTag : "";
 
   const parsedTag = parseTagSelection(selectedTag);
-  const selectedNameLower = parsedTag ? parsedTag.name.toLowerCase() : "";
-  const selectedCategoryLower = parsedTag ? parsedTag.category.toLowerCase() : "";
 
   return ensureSnippetsArray(snippets).filter((snippet) => {
     if (!snippet || typeof snippet !== "object") {
@@ -131,13 +135,8 @@ function filterSnippets(snippets, options = {}) {
 
     if (parsedTag) {
       const hasTag = getSnippetTags(snippet).some((tag) => {
-        if (!tag || typeof tag !== "object") return false;
-        const name = typeof tag.name === "string" ? tag.name.trim() : "";
-        if (!name) return false;
-        const rawCategory = typeof tag.category === "string" ? tag.category.trim() : "";
-        const category = rawCategory || "general";
-        return name.toLowerCase() === selectedNameLower &&
-          category.toLowerCase() === selectedCategoryLower;
+        const normalized = internalNormalizeTag(tag);
+        return normalized && normalized.key === parsedTag.key;
       });
       if (!hasTag) return false;
     }
@@ -244,6 +243,7 @@ function mergeImportedSnippets(existingSnippets, importedSnippets, now, mergeByI
 }
 
 const snippetDomain = {
+  LIMITS,
   getSnippetTags,
   isValidImportedSnippet,
   normalizeImportedSnippet,

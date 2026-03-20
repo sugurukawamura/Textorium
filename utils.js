@@ -43,12 +43,11 @@ function mergeSnippets(a, b, updatedAt = Date.now()) {
   const tags = [...tagsA, ...tagsB];
   const seen = new Set();
   const uniqTags = tags
-    .map((tag) => normalizeTagForMerge(tag))
+    .map((tag) => normalizeTag(tag))
     .filter((tag) => !!tag)
     .filter((tag) => {
-      const key = `${tag.name.toLowerCase()}|${tag.category.toLowerCase()}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
+      if (seen.has(tag.key)) return false;
+      seen.add(tag.key);
       return true;
     });
 
@@ -65,16 +64,30 @@ function mergeSnippets(a, b, updatedAt = Date.now()) {
   };
 }
 
-function normalizeTagForMerge(tag) {
+/**
+ * Normalize a tag object.
+ * Returns null if the tag is invalid (missing name).
+ * Otherwise returns a new object with trimmed name, category (default 'general'),
+ * and a lookup key 'name:category' in lowercase.
+ * Preserves other properties of the tag object.
+ */
+function normalizeTag(tag) {
   if (!tag || typeof tag !== "object") return null;
   const name = typeof tag.name === "string" ? tag.name.trim() : "";
   if (!name) return null;
   const rawCategory = typeof tag.category === "string" ? tag.category.trim() : "";
+  const category = rawCategory || "general";
+  const key = `${name.toLowerCase()}:${category.toLowerCase()}`;
   return {
     ...tag,
     name,
-    category: rawCategory || "general"
+    category,
+    key
   };
+}
+
+function normalizeTagForMerge(tag) {
+  return normalizeTag(tag);
 }
 
 if (typeof module !== 'undefined' && module.exports) {
@@ -82,5 +95,6 @@ if (typeof module !== 'undefined' && module.exports) {
     generateId,
     mergeSnippets,
     normalizeTagForMerge
+    normalizeTag
   };
 }
