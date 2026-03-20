@@ -94,6 +94,7 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     generateId,
     mergeSnippets,
+    normalizeTagForMerge
     normalizeTag
   };
 }
