@@ -178,7 +178,13 @@ saveSnippetBtn.addEventListener("click", async () => {
 
   const tagsArray = [];
   if (tagName) {
-    tagsArray.push({ name: tagName, category: tagCategory || "general" });
+    const normalized = domain.normalizeTag ? domain.normalizeTag({ name: tagName, category: tagCategory }) : null;
+    if (normalized) {
+      tagsArray.push(normalized);
+    } else {
+      // Fallback if domain.normalizeTag is not available or returned null
+      tagsArray.push({ name: tagName, category: tagCategory || "general" });
+    }
   }
 
   const newSnippet = {
@@ -491,7 +497,8 @@ function createSnippetTags(snippet) {
   tags.forEach((tag) => {
     const tagEl = document.createElement("span");
     tagEl.className = "tag";
-    tagEl.textContent = `${tag.name} (${tag.category || "general"})`;
+    const category = tag.category || "general";
+    tagEl.textContent = `${tag.name} (${category})`;
     tagContainer.appendChild(tagEl);
   });
   return tagContainer;
@@ -610,7 +617,16 @@ function createEditForm(snippet) {
     const nextTagName = editTagNameInput.value.trim();
     const nextTagCategory = editTagCategoryInput.value.trim();
     const otherTags = domain.getSnippetTags(snippet).slice(1);
-    const firstTag = nextTagName ? [{ name: nextTagName, category: nextTagCategory || "general" }] : [];
+
+    let firstTag = [];
+    if (nextTagName) {
+      const normalized = domain.normalizeTag ? domain.normalizeTag({ name: nextTagName, category: nextTagCategory }) : null;
+      if (normalized) {
+        firstTag = [normalized];
+      } else {
+        firstTag = [{ name: nextTagName, category: nextTagCategory || "general" }];
+      }
+    }
     const nextTags = [...firstTag, ...otherTags];
 
     const updatedSnippet = {
