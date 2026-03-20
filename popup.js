@@ -268,6 +268,7 @@ const I18N = {
 };
 
 // Global UI state
+let allSnippets = [];
 let currentSortBy = "createdAt";
 let isDescending = true;
 let currentSearchTerm = "";
@@ -343,19 +344,19 @@ function showStatus(message, type = "info") {
   }, STATUS_DISPLAY_MS);
 }
 
-function showStatusKey(key, values = {}) {
-  showStatus(t(key, values), "info");
-}
-
-function showErrorKey(key, values = {}) {
-  showStatus(t(key, values), "error");
+function showStatusKey(key, values = {}, type = "info") {
+  if (typeof values === "string") {
+    type = values;
+    values = {};
+  }
+  showStatus(t(key, values), type);
 }
 
 async function loadSettings() {
   return new Promise((resolve) => {
     chrome.storage.local.get([SETTINGS_KEY], (result) => {
       if (chrome.runtime.lastError) {
-        showErrorKey("error.loadSettings");
+        showStatusKey("error.loadSettings", "error");
         resolve({});
         return;
       }
@@ -368,7 +369,7 @@ async function saveSettings() {
   return new Promise((resolve) => {
     chrome.storage.local.set({ [SETTINGS_KEY]: settingsState }, () => {
       if (chrome.runtime.lastError) {
-        showErrorKey("error.saveSettings");
+        showStatusKey("error.saveSettings", "error");
         resolve(false);
         return;
       }
@@ -405,7 +406,7 @@ saveSnippetBtn.addEventListener("click", async () => {
   const tagCategory = tagCategoryInput.value.trim();
 
   if (!title || !content) {
-    showErrorKey("error.requiredTitleContent");
+    showStatusKey("error.requiredTitleContent", "error");
     return;
   }
 
@@ -441,12 +442,10 @@ saveSnippetBtn.addEventListener("click", async () => {
     favorite: false
   };
 
-  const storedSnippets = await getStoredSnippets();
-  if (!storedSnippets) return;
-
-  storedSnippets.push(newSnippet);
-  const saved = await setStoredSnippets(storedSnippets);
+  const nextSnippets = [...allSnippets, newSnippet];
+  const saved = await setStoredSnippets(nextSnippets);
   if (!saved) return;
+  allSnippets = nextSnippets;
 
   titleInput.value = "";
   tagNameInput.value = "";
@@ -531,8 +530,7 @@ applySortBtn.addEventListener("click", async () => {
 });
 
 exportBtn.addEventListener("click", async () => {
-  const snippets = await getStoredSnippets();
-  if (!snippets) return;
+  const snippets = allSnippets;
 
   const dataStr = JSON.stringify(snippets, null, 2);
   const blob = new Blob([dataStr], { type: "application/json" });
@@ -561,7 +559,11 @@ importInput.addEventListener("change", (event) => {
       if (!existing) return;
       const result = domain.mergeImportedSnippets(existing, parsed, Date.now(), mergeSnippets);
       const saved = await setStoredSnippets(result.snippets);
+      const result = domain.mergeImportedSnippets(allSnippets, parsed, Date.now(), mergeSnippets);
+      const nextSnippets = result.snippets;
+      const saved = await setStoredSnippets(nextSnippets);
       if (!saved) return;
+      allSnippets = nextSnippets;
 
       await refreshCurrentView();
       showStatusKey("status.importFinished", {
@@ -570,12 +572,12 @@ importInput.addEventListener("change", (event) => {
         invalid: result.invalid
       });
     } catch (error) {
-      showErrorKey("error.importInvalid");
+      showStatusKey("error.importInvalid", "error");
     }
   };
 
   reader.onerror = () => {
-    showErrorKey("error.importRead");
+    showStatusKey("error.importRead", "error");
   };
 
   reader.readAsText(file);
@@ -631,12 +633,10 @@ function updateTagFilterOptions(snippets) {
 }
 
 async function refreshCurrentView() {
-  const storedSnippets = await getStoredSnippets();
-  if (!storedSnippets) return;
-
-  updateTagFilterOptions(storedSnippets);
+  updateTagFilterOptions(allSnippets);
 
   const filteredSnippets = domain.filterSnippets(storedSnippets, {
+  const filteredSnippets = domain.filterSnippets(allSnippets, {
     searchTerm: currentSearchTerm,
     favoritesOnly: isFavoritesOnly,
     selectedTag: filterTagsSelect.value
@@ -649,7 +649,7 @@ async function getStoredSnippets() {
   return new Promise((resolve) => {
     chrome.storage.local.get(["snippets"], (result) => {
       if (chrome.runtime.lastError) {
-        showErrorKey("error.loadSnippets");
+        showStatusKey("error.loadSnippets", "error");
         resolve(null);
         return;
       }
@@ -662,7 +662,7 @@ async function setStoredSnippets(snippets) {
   return new Promise((resolve) => {
     chrome.storage.local.set({ snippets }, () => {
       if (chrome.runtime.lastError) {
-        showErrorKey("error.saveSnippets");
+        showStatusKey("error.saveSnippets", "error");
         resolve(false);
         return;
       }
@@ -672,24 +672,30 @@ async function setStoredSnippets(snippets) {
 }
 
 async function updateSnippetInStorage(updatedSnippet) {
-  const storedSnippets = await getStoredSnippets();
-  if (!storedSnippets) return false;
-
-  const index = storedSnippets.findIndex((snippet) => snippet.id === updatedSnippet.id);
+  const index = allSnippets.findIndex((snippet) => snippet.id === updatedSnippet.id);
   if (index === -1) {
-    showErrorKey("error.snippetNotFound");
+    showStatusKey("error.snippetNotFound", "error");
     return false;
   }
 
-  storedSnippets[index] = updatedSnippet;
-  return setStoredSnippets(storedSnippets);
+  const nextSnippets = [...allSnippets];
+  nextSnippets[index] = updatedSnippet;
+  const saved = await setStoredSnippets(nextSnippets);
+  if (saved) {
+    allSnippets = nextSnippets;
+    return true;
+  }
+  return false;
 }
 
 async function deleteSnippetFromStorage(snippetId) {
-  const storedSnippets = await getStoredSnippets();
-  if (!storedSnippets) return false;
-  const updatedSnippets = storedSnippets.filter((snippet) => snippet.id !== snippetId);
-  return setStoredSnippets(updatedSnippets);
+  const nextSnippets = allSnippets.filter((snippet) => snippet.id !== snippetId);
+  const saved = await setStoredSnippets(nextSnippets);
+  if (saved) {
+    allSnippets = nextSnippets;
+    return true;
+  }
+  return false;
 }
 
 function renderSnippetItem(snippet) {
@@ -785,7 +791,7 @@ function createSnippetActions(snippet, editContainer) {
       await navigator.clipboard.writeText(contentText);
       showStatusKey("status.copied");
     } catch (error) {
-      showErrorKey("error.copyFailed");
+      showStatusKey("error.copyFailed", "error");
     }
   });
 
@@ -857,7 +863,7 @@ function createEditForm(snippet) {
     const nextTitle = editTitleInput.value.trim();
     const nextContent = editContentTextarea.value.trim();
     if (!nextTitle || !nextContent) {
-      showErrorKey("error.requiredTitleContent");
+      showStatusKey("error.requiredTitleContent", "error");
       return;
     }
 
@@ -968,9 +974,11 @@ function displaySnippets(snippets) {
 async function init() {
   if (!domain) {
     showErrorKey("error.loadDomain");
+    showStatusKey("error.loadDomain", "error");
     return;
   }
   await applyInitialSettings();
+  allSnippets = await getStoredSnippets() || [];
   await refreshCurrentView();
 }
 

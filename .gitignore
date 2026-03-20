@@ -1,20 +1,54 @@
+# Dependencies
 node_modules/
+
+# Coverage & test artifacts
 coverage/
+artifacts/
+playwright-report/
+test-results/
+
+# Logs
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# Security: secrets & credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+id_rsa
+*.p12
+*.pfx
+credentials.csv
+google-service-account.json
+*.service-account.json
+
+# Database dumps / local databases
+*.sqlite
+*.sqlite3
+*.db
+dump.sql
+
+# OS files
 .DS_Store
 Thumbs.db
 
+# Editor/IDE
 .idea/
 .vscode/
 
+# Build outputs / caches
+dist/
+build/
+__pycache__/
+*.pyc
+*.class
+*.o
+
+# Temporary files
 *.tmp
 *.temp
-
-artifacts/
-playwright-report/
-test-results/

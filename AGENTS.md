@@ -6,7 +6,7 @@
 ## Project overview
 - **What**: Textorium is a *Chrome extension (Manifest V3)* for managing local text snippets in a popup UI.
 - **Scope**: Plain HTML/CSS/JS. No bundler. No external network calls.
-- **Key files**: `manifest.json`, `popup.html`, `popup.js`, `snippet-domain.js`, `utils.js`, `background.js`, `README.md`.
+- **Key files**: `manifest.json`, `popup.html`, `popup.js`, `snippet-domain.js`, `utils.js`, `README.md`.
 
 ## Repository layout (flat)
 ```
@@ -17,7 +17,6 @@
 /utils.js             # Shared helpers (id generation, merge policy)
 /utils.test.js        # Unit tests for utils.js
 /snippet-domain.test.js # Unit tests for snippet-domain.js
-/background.js        # Minimal service worker (onInstalled, future hooks)
 /README.md            # Overview & install steps
 ```
 *(No build tooling. Keep file size & complexity modest.)*
