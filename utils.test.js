@@ -1,6 +1,31 @@
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { generateId, mergeSnippets } = require('./utils.js');
+const { generateId, mergeSnippets, normalizeTag } = require('./utils.js');
+
+test('normalizeTag normalizes valid tag and returns null for invalid', () => {
+  assert.deepStrictEqual(normalizeTag({ name: " Work ", category: " " }), {
+    name: "Work",
+    category: "general",
+    key: "work:general"
+  });
+
+  assert.deepStrictEqual(normalizeTag({ name: "tag" }), {
+    name: "tag",
+    category: "general",
+    key: "tag:general"
+  });
+
+  assert.deepStrictEqual(normalizeTag({ name: "tag", category: "CAT", extra: 1 }), {
+    name: "tag",
+    category: "CAT",
+    key: "tag:cat",
+    extra: 1
+  });
+
+  assert.strictEqual(normalizeTag(null), null);
+  assert.strictEqual(normalizeTag({}), null);
+  assert.strictEqual(normalizeTag({ name: "  " }), null);
+});
 
 test('generateId format', () => {
   const id = generateId();
@@ -173,8 +198,8 @@ test('mergeSnippets normalizes tags and drops invalid tag entries', () => {
   );
 
   assert.deepStrictEqual(merged.tags, [
-    { name: 'Work', category: 'general' },
-    { name: 'Meet', category: 'Team' }
+    { name: 'Work', category: 'general', key: 'work:general' },
+    { name: 'Meet', category: 'Team', key: 'meet:team' }
   ]);
 });
 
