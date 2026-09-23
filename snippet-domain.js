@@ -33,13 +33,11 @@ function internalNormalizeTag(tag) {
 }
 
 function isValidImportedTag(tag) {
-  return !!internalNormalizeTag(tag);
-  return !!tag &&
-    typeof tag === "object" &&
-    typeof tag.name === "string" &&
-    tag.name.trim().length > 0 &&
-    tag.name.length <= LIMITS.TAG_NAME &&
-    (tag.category === undefined || (typeof tag.category === "string" && tag.category.length <= LIMITS.TAG_CATEGORY));
+  const normalized = internalNormalizeTag(tag);
+  if (!normalized) return false;
+  if (normalized.name.length > LIMITS.TAG_NAME) return false;
+  if (normalized.category && normalized.category.length > LIMITS.TAG_CATEGORY) return false;
+  return true;
 }
 
 function normalizeSnippetTags(tags) {
@@ -242,6 +240,111 @@ function mergeImportedSnippets(existingSnippets, importedSnippets, now, mergeByI
   };
 }
 
+/**
+ * Extract template variables from snippet content.
+ * Matches {{name}} and {{name:default}}
+ */
+function extractTemplateVariables(content) {
+  if (typeof content !== "string" || !content.includes("{{")) {
+    return [];
+  }
+  const regex = /\{\{([^}]+)\}\}/g;
+  const variables = [];
+  const seen = new Set();
+  let match;
+
+  while ((match = regex.exec(content)) !== null) {
+    const inner = match[1].trim();
+    if (!inner) continue;
+
+    const colonIndex = inner.indexOf(":");
+    let name = inner;
+    let defaultValue = "";
+
+    if (colonIndex !== -1) {
+      name = inner.slice(0, colonIndex).trim();
+      defaultValue = inner.slice(colonIndex + 1).trim();
+    }
+
+    if (!name) continue;
+
+    if (!seen.has(name)) {
+      seen.add(name);
+      variables.push({
+        name,
+        defaultValue,
+        raw: match[0]
+      });
+    }
+  }
+
+  return variables;
+}
+
+/**
+ * Render a template string with provided variable values.
+ */
+function renderTemplate(content, values = {}) {
+  if (typeof content !== "string") return "";
+  return content.replace(/\{\{([^}]+)\}\}/g, (match, inner) => {
+    const trimmed = inner.trim();
+    const colonIndex = trimmed.indexOf(":");
+    let name = trimmed;
+    let defaultValue = "";
+
+    if (colonIndex !== -1) {
+      name = trimmed.slice(0, colonIndex).trim();
+      defaultValue = trimmed.slice(colonIndex + 1).trim();
+    }
+
+    if (!name) return match;
+
+    if (Object.prototype.hasOwnProperty.call(values, name) && values[name] !== undefined && values[name] !== null && values[name] !== "") {
+      return String(values[name]);
+    }
+    return defaultValue;
+  });
+}
+
+/**
+ * Extract hashtags from content (e.g. #tag #work).
+ * Returns array of { name, category: 'general' }
+ */
+function extractHashtags(content) {
+  if (typeof content !== "string" || !content.includes("#")) {
+    return [];
+  }
+  const regex = /(?:^|\s)#([^\s#,.:;!?(){}\[\]"']+)/g;
+  const tags = [];
+  const seen = new Set();
+  let match;
+
+  while ((match = regex.exec(content)) !== null) {
+    const name = match[1].trim();
+    if (!name || name.length > LIMITS.TAG_NAME) continue;
+    const lower = name.toLowerCase();
+    if (!seen.has(lower)) {
+      seen.add(lower);
+      tags.push({ name, category: "general" });
+    }
+  }
+
+  return tags;
+}
+
+/**
+ * Infer a title from content if no title was provided.
+ */
+function inferTitleFromContent(content, maxLen = 40) {
+  if (typeof content !== "string") return "Untitled";
+  const lines = content.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 0) return "Untitled";
+  const firstLine = lines[0].replace(/^[#\-*\s>]+/, "").trim();
+  if (!firstLine) return "Untitled";
+  if (firstLine.length <= maxLen) return firstLine;
+  return firstLine.slice(0, maxLen).trim() + "…";
+}
+
 const snippetDomain = {
   LIMITS,
   getSnippetTags,
@@ -250,7 +353,11 @@ const snippetDomain = {
   buildTagFilterOptions,
   filterSnippets,
   sortSnippets,
-  mergeImportedSnippets
+  mergeImportedSnippets,
+  extractTemplateVariables,
+  renderTemplate,
+  extractHashtags,
+  inferTitleFromContent
 };
 
 if (typeof window !== "undefined") {

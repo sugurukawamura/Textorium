@@ -7,7 +7,11 @@ const {
   buildTagFilterOptions,
   filterSnippets,
   sortSnippets,
-  mergeImportedSnippets
+  mergeImportedSnippets,
+  extractTemplateVariables,
+  renderTemplate,
+  extractHashtags,
+  inferTitleFromContent
 } = require("./snippet-domain.js");
 
 test("getSnippetTags returns [] when tags is missing or invalid", () => {
@@ -280,4 +284,62 @@ test("mergeImportedSnippets tolerates non-array input", () => {
     updated: 0,
     invalid: 0
   });
+});
+
+test("extractTemplateVariables extracts simple and default variables without duplicates", () => {
+  const content = "Hello {{name:World}}! Your task is {{task}}. Please reply to {{name}}.";
+  const vars = extractTemplateVariables(content);
+  assert.strictEqual(vars.length, 2);
+  assert.deepStrictEqual(vars[0], {
+    name: "name",
+    defaultValue: "World",
+    raw: "{{name:World}}"
+  });
+  assert.deepStrictEqual(vars[1], {
+    name: "task",
+    defaultValue: "",
+    raw: "{{task}}"
+  });
+
+  assert.deepStrictEqual(extractTemplateVariables("No variables here"), []);
+  assert.deepStrictEqual(extractTemplateVariables(null), []);
+});
+
+test("renderTemplate replaces variables and falls back to defaults or empty string", () => {
+  const template = "Translate the following to {{lang:Japanese}}:\n{{text}}";
+  
+  // With explicit values
+  const rendered1 = renderTemplate(template, { lang: "French", text: "Hello" });
+  assert.strictEqual(rendered1, "Translate the following to French:\nHello");
+
+  // With default value fallback
+  const rendered2 = renderTemplate(template, { text: "Good morning" });
+  assert.strictEqual(rendered2, "Translate the following to Japanese:\nGood morning");
+
+  // Missing everything
+  const rendered3 = renderTemplate(template, {});
+  assert.strictEqual(rendered3, "Translate the following to Japanese:\n");
+});
+
+test("extractHashtags extracts hashtags and ignores punctuation and duplicates", () => {
+  const text = "Meeting notes #work #meeting #work! Check #project_alpha and #日本語.";
+  const tags = extractHashtags(text);
+  assert.deepStrictEqual(tags, [
+    { name: "work", category: "general" },
+    { name: "meeting", category: "general" },
+    { name: "project_alpha", category: "general" },
+    { name: "日本語", category: "general" }
+  ]);
+
+  assert.deepStrictEqual(extractHashtags("Plain text without tags"), []);
+});
+
+test("inferTitleFromContent extracts clean first line as title", () => {
+  assert.strictEqual(inferTitleFromContent("### Project Update\nDetails here..."), "Project Update");
+  assert.strictEqual(inferTitleFromContent("- Bullet point item\nMore text"), "Bullet point item");
+  assert.strictEqual(inferTitleFromContent("   "), "Untitled");
+  assert.strictEqual(inferTitleFromContent(null), "Untitled");
+
+  const longLine = "A".repeat(50);
+  assert.strictEqual(inferTitleFromContent(longLine, 20), "AAAAAAAAAAAAAAAAAAAA…");
 });

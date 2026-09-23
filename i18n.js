@@ -28,6 +28,19 @@ const I18N = {
       content: "本文を入力",
       search: "タイトル・本文・タグで検索"
     },
+    tab: {
+      all: "すべて",
+      favorites: "お気に入り",
+      templates: "テンプレート"
+    },
+    badge: {
+      template: "⚡️ テンプレート"
+    },
+    modal: {
+      templateTitle: "プロンプトを展開してコピー",
+      templateDesc: "変数を入力してクリップボードにコピーします。",
+      templatePreview: "展開後プレビュー"
+    },
     action: {
       saveSnippet: "保存",
       search: "検索",
@@ -38,12 +51,18 @@ const I18N = {
       favoritesOnlyOff: "お気に入り: OFF",
       favoritesOnlyOn: "お気に入り: ON",
       copy: "コピー",
+      copied: "✓ コピー完了!",
       edit: "編集",
       delete: "削除",
       saveChanges: "変更を保存",
       cancel: "キャンセル",
       readMore: "続きを読む",
-      showLess: "折りたたむ"
+      showLess: "折りたたむ",
+      openSidePanel: "サイドパネルで開く",
+      quickAdd: "+ 新規",
+      close: "閉じる",
+      fillAndCopy: "展開してコピー",
+      addSample: "サンプルを追加"
     },
     filter: {
       allTags: "すべてのタグ"
@@ -64,16 +83,19 @@ const I18N = {
       exported: "エクスポートしました。",
       importFinished: "インポート完了: 追加 {added} / 更新 {updated} / 無効 {invalid}",
       favoriteAdded: "お気に入りに追加しました。",
-      favoriteRemoved: "お気に入りを解除しました。"
+      favoriteRemoved: "お気に入りを解除しました。",
+      samplesAdded: "サンプルスニペットを追加しました。"
     },
     empty: {
-      noSnippets: "スニペットがありません。"
+      noSnippets: "スニペットがありません。",
+      welcome: "Textorium 2.0 へようこそ！",
+      welcomeDesc: "右上の「+ 新規作成」または下のボタンから最初のプロンプトを登録しましょう。{{変数}}を使うと穴埋めテンプレートになります。"
     },
     confirm: {
       delete: "このスニペットを削除しますか？"
     },
     error: {
-      requiredTitleContent: "タイトルと本文は必須です。",
+      requiredTitleContent: "本文を入力してください。",
       loadSnippets: "スニペットの読み込みに失敗しました。",
       saveSnippets: "スニペットの保存に失敗しました。",
       snippetNotFound: "スニペットが見つかりません。",
@@ -112,7 +134,9 @@ const I18N = {
       editTagCategory: "タグカテゴリを編集",
       editContent: "本文を編集",
       saveChanges: "変更を保存",
-      cancelEditing: "編集をキャンセル"
+      cancelEditing: "編集をキャンセル",
+      openSidePanel: "サイドパネルで開く",
+      quickAdd: "新規スニペット作成"
     }
   },
   en: {
@@ -140,6 +164,19 @@ const I18N = {
       content: "Enter content",
       search: "Search title, content, or tags"
     },
+    tab: {
+      all: "All",
+      favorites: "Favorites",
+      templates: "Templates"
+    },
+    badge: {
+      template: "⚡️ Template"
+    },
+    modal: {
+      templateTitle: "Fill & Copy Prompt",
+      templateDesc: "Enter values for template variables and copy to clipboard.",
+      templatePreview: "Live Preview"
+    },
     action: {
       saveSnippet: "Save",
       search: "Search",
@@ -150,12 +187,18 @@ const I18N = {
       favoritesOnlyOff: "Favorites: OFF",
       favoritesOnlyOn: "Favorites: ON",
       copy: "Copy",
+      copied: "✓ Copied!",
       edit: "Edit",
       delete: "Delete",
       saveChanges: "Save Changes",
       cancel: "Cancel",
       readMore: "Read More",
-      showLess: "Show Less"
+      showLess: "Show Less",
+      openSidePanel: "Open in Side Panel",
+      quickAdd: "+ New",
+      close: "Close",
+      fillAndCopy: "Fill & Copy",
+      addSample: "Add Sample Prompts"
     },
     filter: {
       allTags: "All Tags"
@@ -176,16 +219,19 @@ const I18N = {
       exported: "Snippets exported.",
       importFinished: "Import finished: Added {added} / Updated {updated} / Invalid {invalid}",
       favoriteAdded: "Added to favorites.",
-      favoriteRemoved: "Removed from favorites."
+      favoriteRemoved: "Removed from favorites.",
+      samplesAdded: "Sample snippets added."
     },
     empty: {
-      noSnippets: "No snippets found."
+      noSnippets: "No snippets found.",
+      welcome: "Welcome to Textorium 2.0!",
+      welcomeDesc: "Create your first prompt using '+ New Snippet' above or the button below. Use {{variable}} for dynamic fill-in templates."
     },
     confirm: {
       delete: "Delete this snippet?"
     },
     error: {
-      requiredTitleContent: "Title and content are required.",
+      requiredTitleContent: "Please enter content.",
       loadSnippets: "Failed to load snippets.",
       saveSnippets: "Failed to save snippets.",
       snippetNotFound: "Snippet not found.",
@@ -224,7 +270,9 @@ const I18N = {
       editTagCategory: "Edit tag category",
       editContent: "Edit content",
       saveChanges: "Save changes",
-      cancelEditing: "Cancel editing"
+      cancelEditing: "Cancel editing",
+      openSidePanel: "Open in Side Panel",
+      quickAdd: "Create new snippet"
     }
   }
 };

@@ -87,14 +87,22 @@ function normalizeTag(tag) {
 }
 
 function normalizeTagForMerge(tag) {
-  return normalizeTag(tag);
+  if (!tag || typeof tag !== "object") return null;
+  const name = typeof tag.name === "string" ? tag.name.trim() : "";
+  if (!name) return null;
+  const rawCategory = typeof tag.category === "string" ? tag.category.trim() : "";
+  return {
+    ...tag,
+    name,
+    category: rawCategory || "general"
+  };
 }
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     generateId,
     mergeSnippets,
-    normalizeTagForMerge
+    normalizeTagForMerge,
     normalizeTag
   };
 }

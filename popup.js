@@ -1,987 +1,1099 @@
-// popup.js
-
+// popup.js - Textorium 2.0 Controller
 /**
- * Popup UI controller for Textorium.
- * Keeps chrome/storage/DOM concerns here and delegates pure logic to snippet-domain.js.
+ * Textorium 2.0: The Intelligent Local Palette
+ * High performance, zero-friction snippet and dynamic template manager.
  */
 
-const titleInput = document.getElementById("title");
-const tagNameInput = document.getElementById("tagName");
-const tagCategoryInput = document.getElementById("tagCategory");
-const contentInput = document.getElementById("content");
-const languageSelect = document.getElementById("languageSelect");
+(() => {
+  // Safe domain & i18n access
+  const domain = (typeof window !== "undefined" && window.SnippetDomain) ||
+    (typeof require !== "undefined" ? require("./snippet-domain.js") : {});
+  const i18nSource = (typeof window !== "undefined" && window.I18N) ||
+    (typeof require !== "undefined" ? require("./i18n.js") : {});
 
-const saveSnippetBtn = document.getElementById("saveSnippetBtn");
-const searchInput = document.getElementById("searchInput");
-const searchBtn = document.getElementById("searchBtn");
-const clearSearchBtn = document.getElementById("clearSearchBtn");
-const filterFavoritesBtn = document.getElementById("filterFavoritesBtn");
-const clearFilterBtn = document.getElementById("clearFilterBtn");
-const filterTagsSelect = document.getElementById("filterTags");
-const sortBySelect = document.getElementById("sortBy");
-const sortDirectionBtn = document.getElementById("sortDirection");
-const applySortBtn = document.getElementById("applySortBtn");
-const exportBtn = document.getElementById("exportBtn");
-const importInput = document.getElementById("importInput");
-const statusMessage = document.getElementById("statusMessage");
+  // DOM Elements - Top Bar
+  const openSidePanelBtn = document.getElementById("openSidePanelBtn");
+  const quickAddBtn = document.getElementById("quickAddBtn");
+  const settingsToggleBtn = document.getElementById("settingsToggleBtn");
+  const themeToggleBtn = document.getElementById("themeToggleBtn");
+  const languageSelect = document.getElementById("languageSelect");
 
-const snippetList = document.getElementById("snippetList");
-const themeToggleBtn = document.getElementById("themeToggleBtn");
-const domain = window.SnippetDomain;
+  // DOM Elements - Editor Drawer
+  const editorDrawer = document.getElementById("editorDrawer");
+  const drawerTitle = document.getElementById("drawerTitle");
+  const closeDrawerBtn = document.getElementById("closeDrawerBtn");
+  const cancelDrawerBtn = document.getElementById("cancelDrawerBtn");
+  const saveSnippetBtn = document.getElementById("saveSnippetBtn");
+  const editSnippetId = document.getElementById("editSnippetId");
+  const titleInput = document.getElementById("title");
+  const contentInput = document.getElementById("content");
+  const tagsInput = document.getElementById("tagsInput");
+  const tagNameInput = document.getElementById("tagName");
+  const tagCategoryInput = document.getElementById("tagCategory");
 
-const SETTINGS_KEY = "settings";
-const STATUS_DISPLAY_MS = 2500;
+  // DOM Elements - Controls & Tabs
+  const searchInput = document.getElementById("searchInput");
+  const clearSearchBtn = document.getElementById("clearSearchBtn");
+  const quickTabBtns = document.querySelectorAll(".tab-chip");
+  const allCountBadge = document.getElementById("allCountBadge");
+  const favCountBadge = document.getElementById("favCountBadge");
+  const templateCountBadge = document.getElementById("templateCountBadge");
+  const dynamicTagsList = document.getElementById("dynamicTagsList");
+  const sortBySelect = document.getElementById("sortBy");
+  const sortDirectionBtn = document.getElementById("sortDirection");
 
-const I18N = {
-  ja: {
-    header: {
-      localOnly: "LOCAL ONLY"
+  // DOM Elements - Feed
+  const snippetList = document.getElementById("snippetList");
+
+  // DOM Elements - Template Runner Modal
+  const templateModal = document.getElementById("templateModal");
+  const templateModalTitle = document.getElementById("templateModalTitle");
+  const closeTemplateModalBtn = document.getElementById("closeTemplateModalBtn");
+  const cancelTemplateBtn = document.getElementById("cancelTemplateBtn");
+  const templateFieldsContainer = document.getElementById("templateFieldsContainer");
+  const templateLivePreview = document.getElementById("templateLivePreview");
+  const copyRenderedBtn = document.getElementById("copyRenderedBtn");
+
+  // DOM Elements - Settings Modal
+  const settingsModal = document.getElementById("settingsModal");
+  const closeSettingsModalBtn = document.getElementById("closeSettingsModalBtn");
+  const exportBtn = document.getElementById("exportBtn");
+  const importInput = document.getElementById("importInput");
+  const addSamplesBtn = document.getElementById("addSamplesBtn");
+
+  // DOM Elements - Feedback
+  const toastMessage = document.getElementById("toastMessage");
+  const statusMessage = document.getElementById("statusMessage");
+
+  // Compatibility elements
+  const filterTagsSelect = document.getElementById("filterTags");
+  const filterFavoritesBtn = document.getElementById("filterFavoritesBtn");
+  const searchBtn = document.getElementById("searchBtn");
+  const applySortBtn = document.getElementById("applySortBtn");
+  const clearFilterBtn = document.getElementById("clearFilterBtn");
+
+  // Application State
+  const state = {
+    snippets: [],
+    activeTab: "all", // "all" | "favorites" | "templates"
+    activeTag: null,  // selected tag name or null
+    searchQuery: "",
+    sortBy: "updatedAt",
+    sortDir: "desc",
+    language: "ja",
+    darkMode: false,
+    activeTemplateSnippet: null,
+    templateValues: {}
+  };
+
+  const SETTINGS_KEY = "settings";
+
+  // Sample templates for quick start
+  const SAMPLE_SNIPPETS = [
+    {
+      id: "sample-summary",
+      title: "AI要約プロンプト",
+      content: "以下の文章を要約してください。\n対象読者: {{ターゲット読者:初心者}}\n文字数: {{文字数:300文字以内}}\n出力形式: {{出力形式:箇条書き}}\n\n文章:\n{{文章}}",
+      tags: [{ name: "prompt", category: "general" }, { name: "ai", category: "general" }],
+      favorite: true,
+      createdAt: Date.now() - 3000,
+      updatedAt: Date.now() - 3000
     },
-    section: {
-      add: "新規スニペット",
-      search: "検索とフィルタ",
-      sort: "並び替え",
-      list: "スニペット一覧",
-      transfer: "バックアップ/復元"
+    {
+      id: "sample-translate",
+      title: "翻訳プロンプト",
+      content: "以下のテキストを自然な{{言語:英語}}に翻訳してください。\nトーン: {{トーン:ビジネス・丁寧}}\n\n原文:\n{{原文}}",
+      tags: [{ name: "prompt", category: "general" }, { name: "translate", category: "general" }],
+      favorite: false,
+      createdAt: Date.now() - 2000,
+      updatedAt: Date.now() - 2000
     },
-    field: {
-      title: "タイトル",
-      tagName: "タグ名",
-      tagCategory: "カテゴリ",
-      content: "本文",
-      import: "JSONをインポート"
-    },
-    placeholder: {
-      title: "タイトルを入力",
-      tagName: "例: meeting",
-      tagCategory: "例: work",
-      content: "本文を入力",
-      search: "タイトル・本文・タグで検索"
-    },
-    action: {
-      saveSnippet: "保存",
-      search: "検索",
-      clearSearch: "検索クリア",
-      clearFilter: "フィルタをリセット",
-      applySort: "適用",
-      export: "エクスポート",
-      favoritesOnlyOff: "お気に入り: OFF",
-      favoritesOnlyOn: "お気に入り: ON",
-      copy: "コピー",
-      edit: "編集",
-      delete: "削除",
-      saveChanges: "変更を保存",
-      cancel: "キャンセル",
-      readMore: "続きを読む",
-      showLess: "折りたたむ"
-    },
-    filter: {
-      allTags: "すべてのタグ"
-    },
-    sort: {
-      createdAt: "作成日",
-      updatedAt: "更新日",
-      title: "タイトル",
-      favorite: "お気に入り優先",
-      dirDesc: "↓ 新しい順",
-      dirAsc: "↑ 古い順"
-    },
-    status: {
-      saved: "保存しました。",
-      updated: "更新しました。",
-      deleted: "削除しました。",
-      copied: "クリップボードにコピーしました。",
-      exported: "エクスポートしました。",
-      importFinished: "インポート完了: 追加 {added} / 更新 {updated} / 無効 {invalid}",
-      favoriteAdded: "お気に入りに追加しました。",
-      favoriteRemoved: "お気に入りを解除しました。"
-    },
-    empty: {
-      noSnippets: "スニペットがありません。"
-    },
-    confirm: {
-      delete: "このスニペットを削除しますか？"
-    },
-    error: {
-      requiredTitleContent: "タイトルと本文は必須です。",
-      loadSnippets: "スニペットの読み込みに失敗しました。",
-      saveSnippets: "スニペットの保存に失敗しました。",
-      snippetNotFound: "スニペットが見つかりません。",
-      importInvalid: "インポートに失敗しました。JSON形式を確認してください。",
-      importRead: "インポートファイルの読み込みに失敗しました。",
-      copyFailed: "コピーに失敗しました。",
-      loadSettings: "設定の読み込みに失敗しました。",
-      saveSettings: "設定の保存に失敗しました。",
-      loadDomain: "ドメインロジックの読み込みに失敗しました。",
-      titleTooLong: "タイトルが長すぎます（最大{max}文字）。",
-      contentTooLong: "本文が長すぎます（最大{max}文字）。",
-      tagNameTooLong: "タグ名が長すぎます（最大{max}文字）。",
-      tagCategoryTooLong: "カテゴリが長すぎます（最大{max}文字）。"
-    },
-    aria: {
-      language: "言語",
-      themeToggle: "テーマ切替",
-      title: "タイトル",
-      tagName: "タグ名",
-      tagCategory: "タグカテゴリ",
-      content: "本文",
-      saveSnippet: "保存",
-      search: "検索",
-      searchButton: "検索実行",
-      clearSearch: "検索クリア",
-      filterTag: "タグで絞り込み",
-      favoritesOnly: "お気に入りのみ切替",
-      clearFilter: "フィルタをリセット",
-      sortBy: "並び替え条件",
-      sortDirection: "並び替え順",
-      applySort: "並び替え適用",
-      export: "エクスポート",
-      import: "インポート",
-      toggleFavorite: "お気に入り切替",
-      copySnippet: "スニペットをコピー",
-      editSnippet: "スニペットを編集",
-      deleteSnippet: "スニペットを削除",
-      editTitle: "タイトルを編集",
-      editTagName: "タグ名を編集",
-      editTagCategory: "タグカテゴリを編集",
-      editContent: "本文を編集",
-      saveChanges: "変更を保存",
-      cancelEditing: "編集をキャンセル"
+    {
+      id: "sample-email-reply",
+      title: "お礼メール定型文",
+      content: "{{会社名・お名前}}様\n\nお世話になっております。{{自分の名前}}です。\n\n本日は{{件名:お打ち合わせ}}のお時間をいただき、誠にありがとうございました。\n引き続きよろしくお願い申し上げます。",
+      tags: [{ name: "email", category: "general" }, { name: "business", category: "general" }],
+      favorite: true,
+      createdAt: Date.now() - 1000,
+      updatedAt: Date.now() - 1000
     }
-  },
-  en: {
-    header: {
-      localOnly: "LOCAL ONLY"
-    },
-    section: {
-      add: "New Snippet",
-      search: "Search & Filter",
-      sort: "Sort",
-      list: "Snippets",
-      transfer: "Backup / Restore"
-    },
-    field: {
-      title: "Title",
-      tagName: "Tag Name",
-      tagCategory: "Category",
-      content: "Content",
-      import: "Import JSON"
-    },
-    placeholder: {
-      title: "Enter title",
-      tagName: "e.g., meeting",
-      tagCategory: "e.g., work",
-      content: "Enter content",
-      search: "Search title, content, or tags"
-    },
-    action: {
-      saveSnippet: "Save",
-      search: "Search",
-      clearSearch: "Clear Search",
-      clearFilter: "Reset Filters",
-      applySort: "Apply",
-      export: "Export",
-      favoritesOnlyOff: "Favorites: OFF",
-      favoritesOnlyOn: "Favorites: ON",
-      copy: "Copy",
-      edit: "Edit",
-      delete: "Delete",
-      saveChanges: "Save Changes",
-      cancel: "Cancel",
-      readMore: "Read More",
-      showLess: "Show Less"
-    },
-    filter: {
-      allTags: "All Tags"
-    },
-    sort: {
-      createdAt: "Created",
-      updatedAt: "Updated",
-      title: "Title",
-      favorite: "Favorites First",
-      dirDesc: "↓ Desc",
-      dirAsc: "↑ Asc"
-    },
-    status: {
-      saved: "Snippet saved.",
-      updated: "Snippet updated.",
-      deleted: "Snippet deleted.",
-      copied: "Copied to clipboard.",
-      exported: "Snippets exported.",
-      importFinished: "Import finished: Added {added} / Updated {updated} / Invalid {invalid}",
-      favoriteAdded: "Added to favorites.",
-      favoriteRemoved: "Removed from favorites."
-    },
-    empty: {
-      noSnippets: "No snippets found."
-    },
-    confirm: {
-      delete: "Delete this snippet?"
-    },
-    error: {
-      requiredTitleContent: "Title and content are required.",
-      loadSnippets: "Failed to load snippets.",
-      saveSnippets: "Failed to save snippets.",
-      snippetNotFound: "Snippet not found.",
-      importInvalid: "Failed to import snippets. Check JSON format.",
-      importRead: "Failed to read import file.",
-      copyFailed: "Failed to copy to clipboard.",
-      loadSettings: "Failed to load settings.",
-      saveSettings: "Failed to save settings.",
-      loadDomain: "Failed to load snippet domain logic.",
-      titleTooLong: "Title is too long (max {max} characters).",
-      contentTooLong: "Content is too long (max {max} characters).",
-      tagNameTooLong: "Tag name is too long (max {max} characters).",
-      tagCategoryTooLong: "Category is too long (max {max} characters)."
-    },
-    aria: {
-      language: "Language",
-      themeToggle: "Toggle theme",
-      title: "Title",
-      tagName: "Tag name",
-      tagCategory: "Tag category",
-      content: "Content",
-      saveSnippet: "Save snippet",
-      search: "Search",
-      searchButton: "Run search",
-      clearSearch: "Clear search",
-      filterTag: "Filter by tag",
-      favoritesOnly: "Toggle favorites only",
-      clearFilter: "Reset filters",
-      sortBy: "Sort by",
-      sortDirection: "Sort direction",
-      applySort: "Apply sort",
-      export: "Export snippets",
-      import: "Import snippets",
-      toggleFavorite: "Toggle favorite",
-      copySnippet: "Copy snippet",
-      editSnippet: "Edit snippet",
-      deleteSnippet: "Delete snippet",
-      editTitle: "Edit title",
-      editTagName: "Edit tag name",
-      editTagCategory: "Edit tag category",
-      editContent: "Edit content",
-      saveChanges: "Save changes",
-      cancelEditing: "Cancel editing"
+  ];
+
+  // ==========================================
+  // i18n & Localization
+  // ==========================================
+
+  function t(path, vars = {}) {
+    const lang = state.language === "en" ? "en" : "ja";
+    const dict = i18nSource[lang] || i18nSource.ja || {};
+    const parts = path.split(".");
+    let current = dict;
+
+    for (const part of parts) {
+      if (!current || typeof current !== "object") {
+        return path;
+      }
+      current = current[part];
+    }
+
+    if (typeof current !== "string") {
+      return path;
+    }
+
+    return current.replace(/\{(\w+)\}/g, (match, key) => {
+      return vars[key] !== undefined ? vars[key] : match;
+    });
+  }
+
+  function applyLocalization() {
+    document.querySelectorAll("[data-i18n-text]").forEach((el) => {
+      const key = el.getAttribute("data-i18n-text");
+      el.textContent = t(key);
+    });
+
+    document.querySelectorAll("[data-i18n-placeholder]").forEach((el) => {
+      const key = el.getAttribute("data-i18n-placeholder");
+      el.placeholder = t(key);
+    });
+
+    document.querySelectorAll("[data-aria-key]").forEach((el) => {
+      const key = el.getAttribute("data-aria-key");
+      el.setAttribute("aria-label", t(key));
+    });
+
+    if (sortDirectionBtn) {
+      sortDirectionBtn.textContent = state.sortDir === "desc" ? "↓" : "↑";
+    }
+    if (languageSelect) {
+      languageSelect.value = state.language;
     }
   }
-};
 
-// Global UI state
-let allSnippets = [];
-let currentSortBy = "createdAt";
-let isDescending = true;
-let currentSearchTerm = "";
-let isFavoritesOnly = false;
-let openEditContainer = null;
-let currentLanguage = detectDefaultLanguage();
-let settingsState = {};
+  // ==========================================
+  // Toast & Status Messages
+  // ==========================================
 
-function detectDefaultLanguage() {
-  const locale = (navigator.language || "en").toLowerCase();
-  return locale.startsWith("ja") ? "ja" : "en";
-}
-
-function getLanguageTable() {
-  return I18N[currentLanguage] || I18N.en;
-}
-
-function t(key, values = {}) {
-  const table = getLanguageTable();
-  const value = key.split(".").reduce((acc, part) => (acc ? acc[part] : undefined), table);
-  const template = typeof value === "string" ? value : key;
-  return template.replace(/\{(\w+)\}/g, (_, token) => String(values[token] ?? ""));
-}
-
-function applyStaticLocalization() {
-  document.documentElement.lang = currentLanguage;
-
-  document.querySelectorAll("[data-i18n-text]").forEach((element) => {
-    const key = element.getAttribute("data-i18n-text");
-    element.textContent = t(key);
-  });
-
-  document.querySelectorAll("[data-i18n-placeholder]").forEach((element) => {
-    const key = element.getAttribute("data-i18n-placeholder");
-    element.placeholder = t(key);
-  });
-
-  document.querySelectorAll("[data-aria-key]").forEach((element) => {
-    const key = element.getAttribute("data-aria-key");
-    element.setAttribute("aria-label", t(key));
-  });
-
-  if (filterTagsSelect.options.length > 0) {
-    filterTagsSelect.options[0].textContent = t("filter.allTags");
+  let toastTimer = null;
+  function showToast(message) {
+    if (!toastMessage) return;
+    toastMessage.textContent = message;
+    toastMessage.classList.remove("hidden");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      toastMessage.classList.add("hidden");
+    }, 2200);
   }
-  updateSortDirectionLabel();
-  updateFavoritesFilterLabel();
-  updateThemeToggleLabel();
-}
 
-function updateSortDirectionLabel() {
-  sortDirectionBtn.textContent = isDescending ? t("sort.dirDesc") : t("sort.dirAsc");
-}
-
-function updateFavoritesFilterLabel() {
-  filterFavoritesBtn.textContent = isFavoritesOnly ? t("action.favoritesOnlyOn") : t("action.favoritesOnlyOff");
-  filterFavoritesBtn.setAttribute("aria-pressed", isFavoritesOnly ? "true" : "false");
-}
-
-function updateThemeToggleLabel() {
-  const isDark = document.body.classList.contains("dark-mode");
-  themeToggleBtn.textContent = isDark ? "☀️" : "🌙";
-}
-
-function showStatus(message, type = "info") {
-  if (!statusMessage) return;
-  statusMessage.textContent = message;
-  statusMessage.classList.remove("hidden", "info", "error");
-  statusMessage.classList.add(type);
-  window.clearTimeout(showStatus._timer);
-  showStatus._timer = window.setTimeout(() => {
-    statusMessage.classList.add("hidden");
-  }, STATUS_DISPLAY_MS);
-}
-
-function showStatusKey(key, values = {}, type = "info") {
-  if (typeof values === "string") {
-    type = values;
-    values = {};
+  function showStatus(msg, type = "info") {
+    showToast(msg);
+    if (statusMessage) {
+      statusMessage.textContent = msg;
+      statusMessage.className = `status-message ${type}`;
+      setTimeout(() => {
+        statusMessage.classList.add("hidden");
+      }, 2500);
+    }
   }
-  showStatus(t(key, values), type);
-}
 
-async function loadSettings() {
-  return new Promise((resolve) => {
-    chrome.storage.local.get([SETTINGS_KEY], (result) => {
-      if (chrome.runtime.lastError) {
-        showStatusKey("error.loadSettings", "error");
+  // ==========================================
+  // Storage Integration
+  // ==========================================
+
+  async function getStoredSnippets() {
+    return new Promise((resolve) => {
+      if (typeof chrome === "undefined" || !chrome.storage || !chrome.storage.local) {
+        resolve([]);
+        return;
+      }
+      chrome.storage.local.get(["snippets"], (res) => {
+        resolve(Array.isArray(res.snippets) ? res.snippets : []);
+      });
+    });
+  }
+
+  async function setStoredSnippets(snippets) {
+    return new Promise((resolve) => {
+      if (typeof chrome === "undefined" || !chrome.storage || !chrome.storage.local) {
+        resolve();
+        return;
+      }
+      chrome.storage.local.set({ snippets }, () => resolve());
+    });
+  }
+
+  async function loadSettings() {
+    return new Promise((resolve) => {
+      if (typeof chrome === "undefined" || !chrome.storage || !chrome.storage.local) {
         resolve({});
         return;
       }
-      resolve(result[SETTINGS_KEY] || {});
-    });
-  });
-}
-
-async function saveSettings() {
-  return new Promise((resolve) => {
-    chrome.storage.local.set({ [SETTINGS_KEY]: settingsState }, () => {
-      if (chrome.runtime.lastError) {
-        showStatusKey("error.saveSettings", "error");
-        resolve(false);
-        return;
-      }
-      resolve(true);
-    });
-  });
-}
-
-async function setSetting(key, value) {
-  settingsState[key] = value;
-  await saveSettings();
-}
-
-async function applyInitialSettings() {
-  settingsState = await loadSettings();
-
-  if (settingsState.theme === "dark") {
-    document.body.classList.add("dark-mode");
-  }
-
-  const savedLanguage = settingsState.language;
-  if (savedLanguage === "ja" || savedLanguage === "en") {
-    currentLanguage = savedLanguage;
-  }
-  languageSelect.value = currentLanguage;
-  applyStaticLocalization();
-}
-
-// Save new snippet
-saveSnippetBtn.addEventListener("click", async () => {
-  const title = titleInput.value.trim();
-  const content = contentInput.value.trim();
-  const tagName = tagNameInput.value.trim();
-  const tagCategory = tagCategoryInput.value.trim();
-
-  if (!title || !content) {
-    showStatusKey("error.requiredTitleContent", "error");
-    return;
-  }
-
-  if (title.length > domain.LIMITS.TITLE) {
-    showErrorKey("error.titleTooLong", { max: domain.LIMITS.TITLE });
-    return;
-  }
-  if (content.length > domain.LIMITS.CONTENT) {
-    showErrorKey("error.contentTooLong", { max: domain.LIMITS.CONTENT });
-    return;
-  }
-  if (tagName.length > domain.LIMITS.TAG_NAME) {
-    showErrorKey("error.tagNameTooLong", { max: domain.LIMITS.TAG_NAME });
-    return;
-  }
-  if (tagCategory.length > domain.LIMITS.TAG_CATEGORY) {
-    showErrorKey("error.tagCategoryTooLong", { max: domain.LIMITS.TAG_CATEGORY });
-    return;
-  }
-
-  const tagsArray = [];
-  if (tagName) {
-    tagsArray.push({ name: tagName, category: tagCategory || "general" });
-  }
-
-  const newSnippet = {
-    id: generateId(),
-    title,
-    tags: tagsArray,
-    content,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    favorite: false
-  };
-
-  const nextSnippets = [...allSnippets, newSnippet];
-  const saved = await setStoredSnippets(nextSnippets);
-  if (!saved) return;
-  allSnippets = nextSnippets;
-
-  titleInput.value = "";
-  tagNameInput.value = "";
-  tagCategoryInput.value = "";
-  contentInput.value = "";
-
-  await refreshCurrentView();
-  showStatusKey("status.saved");
-});
-
-contentInput.addEventListener("keydown", (event) => {
-  if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
-    event.preventDefault();
-    saveSnippetBtn.click();
-  }
-});
-
-for (const input of [titleInput, tagNameInput, tagCategoryInput]) {
-  input.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      saveSnippetBtn.click();
-    }
-  });
-}
-
-searchBtn.addEventListener("click", async () => {
-  currentSearchTerm = searchInput.value.trim().toLowerCase();
-  await refreshCurrentView();
-});
-
-searchInput.addEventListener("input", async () => {
-  currentSearchTerm = searchInput.value.trim().toLowerCase();
-  await refreshCurrentView();
-});
-
-searchInput.addEventListener("keydown", async (event) => {
-  if (event.key === "Enter") {
-    event.preventDefault();
-    currentSearchTerm = searchInput.value.trim().toLowerCase();
-    await refreshCurrentView();
-  }
-});
-
-clearSearchBtn.addEventListener("click", async () => {
-  searchInput.value = "";
-  currentSearchTerm = "";
-  await refreshCurrentView();
-});
-
-filterFavoritesBtn.addEventListener("click", async () => {
-  isFavoritesOnly = !isFavoritesOnly;
-  updateFavoritesFilterLabel();
-  await refreshCurrentView();
-});
-
-filterTagsSelect.addEventListener("change", async () => {
-  await refreshCurrentView();
-});
-
-clearFilterBtn.addEventListener("click", async () => {
-  isFavoritesOnly = false;
-  filterTagsSelect.value = "";
-  updateFavoritesFilterLabel();
-  await refreshCurrentView();
-});
-
-sortDirectionBtn.addEventListener("click", async () => {
-  isDescending = !isDescending;
-  updateSortDirectionLabel();
-  await refreshCurrentView();
-});
-
-sortBySelect.addEventListener("change", async () => {
-  currentSortBy = sortBySelect.value;
-  await refreshCurrentView();
-});
-
-applySortBtn.addEventListener("click", async () => {
-  currentSortBy = sortBySelect.value;
-  await refreshCurrentView();
-});
-
-exportBtn.addEventListener("click", async () => {
-  const snippets = allSnippets;
-
-  const dataStr = JSON.stringify(snippets, null, 2);
-  const blob = new Blob([dataStr], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  const now = new Date();
-  const ts = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}-${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
-  a.download = `snippets_${ts}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-  showStatusKey("status.exported");
-});
-
-importInput.addEventListener("change", (event) => {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = async (e) => {
-    try {
-      const parsed = JSON.parse(e.target.result);
-      if (!Array.isArray(parsed)) throw new Error("Invalid JSON structure");
-
-      const existing = await getStoredSnippets();
-      if (!existing) return;
-      const result = domain.mergeImportedSnippets(existing, parsed, Date.now(), mergeSnippets);
-      const saved = await setStoredSnippets(result.snippets);
-      const result = domain.mergeImportedSnippets(allSnippets, parsed, Date.now(), mergeSnippets);
-      const nextSnippets = result.snippets;
-      const saved = await setStoredSnippets(nextSnippets);
-      if (!saved) return;
-      allSnippets = nextSnippets;
-
-      await refreshCurrentView();
-      showStatusKey("status.importFinished", {
-        added: result.added,
-        updated: result.updated,
-        invalid: result.invalid
+      chrome.storage.local.get([SETTINGS_KEY], (res) => {
+        resolve(res[SETTINGS_KEY] || {});
       });
-    } catch (error) {
-      showStatusKey("error.importInvalid", "error");
+    });
+  }
+
+  async function saveSettings(settings) {
+    return new Promise((resolve) => {
+      if (typeof chrome === "undefined" || !chrome.storage || !chrome.storage.local) {
+        resolve();
+        return;
+      }
+      chrome.storage.local.set({ [SETTINGS_KEY]: settings }, () => resolve());
+    });
+  }
+
+  // ==========================================
+  // Filtering & Rendering
+  // ==========================================
+
+  function getFilteredSnippets() {
+    let list = [...state.snippets];
+
+    // Tab filter
+    if (state.activeTab === "favorites") {
+      list = list.filter((s) => !!s.favorite);
+    } else if (state.activeTab === "templates") {
+      list = list.filter((s) => {
+        const vars = domain.extractTemplateVariables ? domain.extractTemplateVariables(s.content) : [];
+        return vars.length > 0;
+      });
     }
-  };
 
-  reader.onerror = () => {
-    showStatusKey("error.importRead", "error");
-  };
+    // Tag filter
+    if (state.activeTag) {
+      list = list.filter((s) => {
+        const tags = Array.isArray(s.tags) ? s.tags : [];
+        return tags.some((t) => (t.name || "").toLowerCase() === state.activeTag.toLowerCase());
+      });
+    }
 
-  reader.readAsText(file);
-  importInput.value = "";
-});
+    // Search query filter
+    if (state.searchQuery.trim()) {
+      const q = state.searchQuery.trim().toLowerCase();
+      list = list.filter((s) => {
+        const titleMatch = (s.title || "").toLowerCase().includes(q);
+        const contentMatch = (s.content || "").toLowerCase().includes(q);
+        const tagMatch = Array.isArray(s.tags) && s.tags.some((t) => (t.name || "").toLowerCase().includes(q));
+        return titleMatch || contentMatch || tagMatch;
+      });
+    }
 
-themeToggleBtn.addEventListener("click", async () => {
-  document.body.classList.toggle("dark-mode");
-  updateThemeToggleLabel();
-  const theme = document.body.classList.contains("dark-mode") ? "dark" : "light";
-  await setSetting("theme", theme);
-});
+    // Sorting
+    if (domain.sortSnippets) {
+      list = domain.sortSnippets(list, state.sortBy, state.sortDir);
+    }
 
-languageSelect.addEventListener("change", async () => {
-  currentLanguage = languageSelect.value === "en" ? "en" : "ja";
-  await setSetting("language", currentLanguage);
-  applyStaticLocalization();
-  await refreshCurrentView();
-});
-
-function sortSnippets(snippets) {
-  return domain.sortSnippets(snippets, currentSortBy, isDescending);
-}
-
-function displaySnippetsWithSort(snippets) {
-  displaySnippets(sortSnippets(snippets));
-}
-
-function updateTagFilterOptions(snippets) {
-  const currentSelection = filterTagsSelect.value;
-  const options = domain.buildTagFilterOptions(snippets);
-
-  while (filterTagsSelect.options.length > 1) {
-    filterTagsSelect.remove(1);
+    return list;
   }
 
-  options.forEach(({ value, label }) => {
-    const option = document.createElement("option");
-    option.value = value;
-    option.textContent = label;
-    filterTagsSelect.appendChild(option);
-  });
+  function updateCounts() {
+    const total = state.snippets.length;
+    const favCount = state.snippets.filter((s) => !!s.favorite).length;
+    const templateCount = state.snippets.filter((s) => {
+      const vars = domain.extractTemplateVariables ? domain.extractTemplateVariables(s.content) : [];
+      return vars.length > 0;
+    }).length;
 
-  if (options.some((option) => option.value === currentSelection)) {
-    filterTagsSelect.value = currentSelection;
-  } else {
-    filterTagsSelect.value = "";
+    if (allCountBadge) allCountBadge.textContent = total;
+    if (favCountBadge) favCountBadge.textContent = favCount;
+    if (templateCountBadge) templateCountBadge.textContent = templateCount;
   }
 
-  if (filterTagsSelect.options.length > 0) {
-    filterTagsSelect.options[0].textContent = t("filter.allTags");
-  }
-}
+  function renderDynamicTags() {
+    if (!dynamicTagsList) return;
+    dynamicTagsList.innerHTML = "";
 
-async function refreshCurrentView() {
-  updateTagFilterOptions(allSnippets);
-
-  updateTagFilterOptions(allSnippets);
-
-  const filteredSnippets = domain.filterSnippets(storedSnippets, {
-  const filteredSnippets = domain.filterSnippets(allSnippets, {
-    searchTerm: currentSearchTerm,
-    favoritesOnly: isFavoritesOnly,
-    selectedTag: filterTagsSelect.value
-  });
-
-  displaySnippetsWithSort(filteredSnippets);
-}
-
-async function getStoredSnippets() {
-  return new Promise((resolve) => {
-    chrome.storage.local.get(["snippets"], (result) => {
-      if (chrome.runtime.lastError) {
-        showStatusKey("error.loadSnippets", "error");
-        resolve(null);
-        return;
+    const tagCounts = new Map();
+    state.snippets.forEach((s) => {
+      if (Array.isArray(s.tags)) {
+        s.tags.forEach((t) => {
+          if (t && t.name) {
+            const name = t.name.trim();
+            const lower = name.toLowerCase();
+            tagCounts.set(lower, { name, count: (tagCounts.get(lower)?.count || 0) + 1 });
+          }
+        });
       }
-      resolve(result.snippets || []);
     });
-  });
-}
 
-async function setStoredSnippets(snippets) {
-  return new Promise((resolve) => {
-    chrome.storage.local.set({ snippets }, () => {
-      if (chrome.runtime.lastError) {
-        showStatusKey("error.saveSnippets", "error");
-        resolve(false);
-        return;
+    if (tagCounts.size === 0) {
+      dynamicTagsList.style.display = "none";
+      return;
+    }
+    dynamicTagsList.style.display = "flex";
+
+    tagCounts.forEach((val, lower) => {
+      const bubble = document.createElement("button");
+      bubble.className = `tag-bubble ${state.activeTag === lower ? "active" : ""}`;
+      bubble.textContent = `#${val.name} (${val.count})`;
+      bubble.addEventListener("click", () => {
+        if (state.activeTag === lower) {
+          state.activeTag = null;
+        } else {
+          state.activeTag = lower;
+        }
+        renderDynamicTags();
+        renderSnippetList();
+      });
+      dynamicTagsList.appendChild(bubble);
+    });
+  }
+
+  function renderSnippetList() {
+    if (!snippetList) return;
+    snippetList.innerHTML = "";
+
+    const filtered = getFilteredSnippets();
+
+    if (filtered.length === 0) {
+      const emptyWrap = document.createElement("div");
+      emptyWrap.className = "empty-state";
+
+      const icon = document.createElement("div");
+      icon.className = "empty-icon";
+      icon.textContent = state.snippets.length === 0 ? "✨" : "🔍";
+
+      const title = document.createElement("div");
+      title.className = "empty-title";
+      title.textContent = state.snippets.length === 0 ? t("empty.welcome") : t("empty.noSnippets");
+
+      const desc = document.createElement("div");
+      desc.className = "empty-desc";
+      desc.textContent = state.snippets.length === 0 ? t("empty.welcomeDesc") : "";
+
+      emptyWrap.appendChild(icon);
+      emptyWrap.appendChild(title);
+      emptyWrap.appendChild(desc);
+
+      if (state.snippets.length === 0) {
+        const addBtn = document.createElement("button");
+        addBtn.className = "btn-primary";
+        addBtn.textContent = t("action.addSample");
+        addBtn.addEventListener("click", addSamplePrompts);
+        emptyWrap.appendChild(addBtn);
       }
-      resolve(true);
+
+      snippetList.appendChild(emptyWrap);
+      return;
+    }
+
+    filtered.forEach((snippet) => {
+      const card = renderSnippetCard(snippet);
+      snippetList.appendChild(card);
     });
-  });
-}
-
-async function updateSnippetInStorage(updatedSnippet) {
-  const index = allSnippets.findIndex((snippet) => snippet.id === updatedSnippet.id);
-  if (index === -1) {
-    showStatusKey("error.snippetNotFound", "error");
-    return false;
   }
 
-  const nextSnippets = [...allSnippets];
-  nextSnippets[index] = updatedSnippet;
-  const saved = await setStoredSnippets(nextSnippets);
-  if (saved) {
-    allSnippets = nextSnippets;
-    return true;
+  function renderSnippetCard(snippet) {
+    const card = document.createElement("div");
+    card.className = "snippet-card snippet-item";
+    card.dataset.id = snippet.id;
+
+    const vars = domain.extractTemplateVariables ? domain.extractTemplateVariables(snippet.content) : [];
+    const isTemplate = vars.length > 0;
+
+    // Card Header Row (.snippet-head)
+    const headEl = document.createElement("div");
+    headEl.className = "snippet-head snippet-card-top";
+
+    const titleGroup = document.createElement("div");
+    titleGroup.className = "title-group";
+
+    // Favorite button (first button in .snippet-head)
+    const favBtn = document.createElement("button");
+    favBtn.className = `fav-btn ${snippet.favorite ? "is-fav" : ""}`;
+    favBtn.textContent = snippet.favorite ? "★" : "☆";
+    favBtn.title = t("aria.toggleFavorite");
+    favBtn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      snippet.favorite = !snippet.favorite;
+      snippet.updatedAt = Date.now();
+      await setStoredSnippets(state.snippets);
+      updateCounts();
+      renderSnippetList();
+      showToast(snippet.favorite ? t("status.favoriteAdded") : t("status.favoriteRemoved"));
+    });
+
+    const titleEl = document.createElement("h3");
+    titleEl.className = "snippet-title";
+    titleEl.textContent = snippet.title || (domain.inferTitleFromContent ? domain.inferTitleFromContent(snippet.content) : "Untitled");
+
+    titleGroup.appendChild(favBtn);
+    titleGroup.appendChild(titleEl);
+
+    // Badges
+    const badgesGroup = document.createElement("div");
+    badgesGroup.className = "snippet-badges";
+
+    if (isTemplate) {
+      const templateBadge = document.createElement("span");
+      templateBadge.className = "badge-template";
+      templateBadge.textContent = "⚡ TEMPLATE";
+      badgesGroup.appendChild(templateBadge);
+    }
+
+    headEl.appendChild(titleGroup);
+    headEl.appendChild(badgesGroup);
+    card.appendChild(headEl);
+
+    // Tags Row
+    if (Array.isArray(snippet.tags) && snippet.tags.length > 0) {
+      const tagsRow = document.createElement("div");
+      tagsRow.className = "snippet-tags-row";
+      snippet.tags.forEach((tItem) => {
+        if (tItem && tItem.name) {
+          const tagSpan = document.createElement("span");
+          tagSpan.className = "card-tag";
+          tagSpan.textContent = `#${tItem.name}`;
+          tagSpan.style.cursor = "pointer";
+          tagSpan.addEventListener("click", (e) => {
+            e.stopPropagation();
+            state.activeTag = tItem.name.toLowerCase();
+            renderDynamicTags();
+            renderSnippetList();
+          });
+          tagsRow.appendChild(tagSpan);
+        }
+      });
+      card.appendChild(tagsRow);
+    }
+
+    // Content Body with variable highlighting
+    const bodyEl = document.createElement("div");
+    bodyEl.className = "snippet-body";
+    highlightTemplateBody(bodyEl, snippet.content);
+    card.appendChild(bodyEl);
+
+    // Expand toggle if content is long
+    if (snippet.content && (snippet.content.length > 140 || snippet.content.split("\n").length > 3)) {
+      const toggleBtn = document.createElement("button");
+      toggleBtn.className = "btn-toggle-expand";
+      toggleBtn.textContent = t("action.readMore");
+      toggleBtn.addEventListener("click", () => {
+        const isExp = bodyEl.classList.toggle("expanded");
+        toggleBtn.textContent = isExp ? t("action.showLess") : t("action.readMore");
+      });
+      card.appendChild(toggleBtn);
+    }
+
+    // Actions Row (.snippet-actions)
+    const actionsRow = document.createElement("div");
+    actionsRow.className = "snippet-actions snippet-card-bottom";
+
+    // 1st button: Copy Action
+    const copyBtn = document.createElement("button");
+    copyBtn.className = `btn-copy-action ${isTemplate ? "is-template" : ""}`;
+    copyBtn.innerHTML = isTemplate ? `<span>⚡ ${t("action.fillAndCopy")}</span>` : `<span>📋 ${t("action.copy")}</span>`;
+    copyBtn.addEventListener("click", async () => {
+      if (isTemplate) {
+        openTemplateRunner(snippet);
+      } else {
+        await executeDirectCopy(snippet.content, copyBtn);
+      }
+    });
+
+    // 2nd button: Edit Action
+    const editBtn = document.createElement("button");
+    editBtn.className = "btn-card-action";
+    editBtn.textContent = "✏️";
+    editBtn.title = t("action.edit");
+
+    // 3rd button: Delete Action
+    const deleteBtn = document.createElement("button");
+    deleteBtn.className = "btn-card-action danger";
+    deleteBtn.textContent = "🗑️";
+    deleteBtn.title = t("action.delete");
+    deleteBtn.addEventListener("click", async () => {
+      if (confirm(t("confirm.delete"))) {
+        state.snippets = state.snippets.filter((s) => s.id !== snippet.id);
+        await setStoredSnippets(state.snippets);
+        updateCounts();
+        renderDynamicTags();
+        renderSnippetList();
+        showToast(t("status.deleted"));
+      }
+    });
+
+    actionsRow.appendChild(copyBtn);
+    actionsRow.appendChild(editBtn);
+    actionsRow.appendChild(deleteBtn);
+    card.appendChild(actionsRow);
+
+    // Inline Edit Form Container (.edit-container, must be last child of .snippet-item)
+    const editContainer = document.createElement("div");
+    editContainer.className = "edit-container hidden";
+
+    const editTitleInput = document.createElement("input");
+    editTitleInput.type = "text";
+    editTitleInput.value = snippet.title || "";
+    editTitleInput.placeholder = t("placeholder.title");
+
+    const editTagInput = document.createElement("input");
+    editTagInput.type = "text";
+    editTagInput.value = (snippet.tags || []).map((t) => t.name).join(", ");
+    editTagInput.placeholder = "タグ (カンマ区切り)";
+
+    const editContentInput = document.createElement("textarea");
+    editContentInput.value = snippet.content || "";
+    editContentInput.placeholder = t("placeholder.content");
+
+    const editActions = document.createElement("div");
+    editActions.className = "edit-actions";
+
+    const saveChangesBtn = document.createElement("button");
+    saveChangesBtn.className = "btn-primary";
+    saveChangesBtn.textContent = t("action.saveChanges");
+    saveChangesBtn.addEventListener("click", async () => {
+      snippet.title = editTitleInput.value.trim() || (domain.inferTitleFromContent ? domain.inferTitleFromContent(editContentInput.value) : "Untitled");
+      snippet.content = editContentInput.value.trim();
+      const tagNames = editTagInput.value.split(/[,、]/).map((s) => s.trim().replace(/^#/, "")).filter(Boolean);
+      snippet.tags = tagNames.map((name) => ({ name, category: "general" }));
+      snippet.updatedAt = Date.now();
+
+      await setStoredSnippets(state.snippets);
+      updateCounts();
+      renderDynamicTags();
+      renderSnippetList();
+      showToast(t("status.updated"));
+    });
+
+    const cancelEditBtn = document.createElement("button");
+    cancelEditBtn.className = "btn-ghost";
+    cancelEditBtn.textContent = t("action.cancel");
+    cancelEditBtn.addEventListener("click", () => {
+      editContainer.classList.add("hidden");
+    });
+
+    editActions.appendChild(saveChangesBtn);
+    editActions.appendChild(cancelEditBtn);
+
+    editContainer.appendChild(editTitleInput);
+    editContainer.appendChild(editTagInput);
+    editContainer.appendChild(editContentInput);
+    editContainer.appendChild(editActions);
+
+    editBtn.addEventListener("click", () => {
+      editContainer.classList.toggle("hidden");
+    });
+
+    card.appendChild(editContainer);
+
+    return card;
   }
-  return false;
-}
 
-async function deleteSnippetFromStorage(snippetId) {
-  const nextSnippets = allSnippets.filter((snippet) => snippet.id !== snippetId);
-  const saved = await setStoredSnippets(nextSnippets);
-  if (saved) {
-    allSnippets = nextSnippets;
-    return true;
+  function highlightTemplateBody(container, content) {
+    if (!content) return;
+    const parts = content.split(/(\{\{[^}]+\}\})/g);
+    parts.forEach((part) => {
+      if (part.startsWith("{{") && part.endsWith("}}")) {
+        const mark = document.createElement("mark");
+        mark.className = "var-highlight";
+        mark.textContent = part;
+        container.appendChild(mark);
+      } else {
+        container.appendChild(document.createTextNode(part));
+      }
+    });
   }
-  return false;
-}
 
-function renderSnippetItem(snippet) {
-  const container = document.createElement("div");
-  container.className = "snippet-item";
-
-  const head = document.createElement("div");
-  head.className = "snippet-head";
-
-  const titleEl = document.createElement("h3");
-  titleEl.textContent = typeof snippet.title === "string" ? snippet.title : "";
-  head.appendChild(titleEl);
-  head.appendChild(createSnippetFavoriteBtn(snippet));
-  container.appendChild(head);
-
-  container.appendChild(createSnippetTags(snippet));
-  container.appendChild(createSnippetContent(snippet));
-
-  const editContainer = createEditForm(snippet);
-  container.appendChild(createSnippetActions(snippet, editContainer));
-  container.appendChild(editContainer);
-
-  return container;
-}
-
-function createSnippetFavoriteBtn(snippet) {
-  const favoriteBtn = document.createElement("button");
-  favoriteBtn.textContent = snippet.favorite ? "★" : "☆";
-  favoriteBtn.style.width = "auto";
-  favoriteBtn.style.minWidth = "42px";
-  favoriteBtn.setAttribute("aria-label", t("aria.toggleFavorite"));
-  favoriteBtn.addEventListener("click", async () => {
-    const updatedSnippet = {
-      ...snippet,
-      favorite: !snippet.favorite,
-      updatedAt: Date.now()
-    };
-    const saved = await updateSnippetInStorage(updatedSnippet);
-    if (!saved) return;
-    showStatusKey(updatedSnippet.favorite ? "status.favoriteAdded" : "status.favoriteRemoved");
-    await refreshCurrentView();
-  });
-  return favoriteBtn;
-}
-
-function createSnippetTags(snippet) {
-  const tagContainer = document.createElement("div");
-  const tags = domain.getSnippetTags(snippet);
-  tags.forEach((tag) => {
-    const tagEl = document.createElement("span");
-    tagEl.className = "tag";
-    tagEl.textContent = `${tag.name} (${tag.category || "general"})`;
-    tagContainer.appendChild(tagEl);
-  });
-  return tagContainer;
-}
-
-function createSnippetContent(snippet) {
-  const container = document.createElement("div");
-  const contentText = typeof snippet.content === "string" ? snippet.content : "";
-
-  const contentEl = document.createElement("p");
-  contentEl.className = "snippet-content";
-  contentEl.textContent = contentText;
-  container.appendChild(contentEl);
-
-  const lines = (contentText.match(/\n/g) || []).length;
-  const isLong = contentText.length > 200 || lines > 3;
-  if (!isLong) return container;
-
-  contentEl.classList.add("collapsed");
-  const toggleBtn = document.createElement("button");
-  toggleBtn.className = "read-more-btn";
-  toggleBtn.textContent = t("action.readMore");
-  toggleBtn.addEventListener("click", () => {
-    contentEl.classList.toggle("collapsed");
-    toggleBtn.textContent = contentEl.classList.contains("collapsed") ? t("action.readMore") : t("action.showLess");
-  });
-  container.appendChild(toggleBtn);
-  return container;
-}
-
-function createSnippetActions(snippet, editContainer) {
-  const actions = document.createElement("div");
-  actions.className = "snippet-actions";
-
-  const copyBtn = document.createElement("button");
-  copyBtn.textContent = t("action.copy");
-  copyBtn.setAttribute("aria-label", t("aria.copySnippet"));
-  copyBtn.addEventListener("click", async () => {
+  async function executeDirectCopy(text, btnElement = null) {
     try {
-      const contentText = typeof snippet.content === "string" ? snippet.content : String(snippet.content ?? "");
-      await navigator.clipboard.writeText(contentText);
-      showStatusKey("status.copied");
-    } catch (error) {
-      showStatusKey("error.copyFailed", "error");
+      await navigator.clipboard.writeText(text);
+      if (btnElement) {
+        const originalText = btnElement.innerHTML;
+        btnElement.classList.add("copied");
+        btnElement.innerHTML = `<span>${t("action.copied")}</span>`;
+        setTimeout(() => {
+          btnElement.classList.remove("copied");
+          btnElement.innerHTML = originalText;
+        }, 1500);
+      }
+      showToast(t("status.copied"));
+    } catch (err) {
+      console.error("Copy failed:", err);
+      showToast(t("error.copyFailed"));
     }
-  });
-
-  const editBtn = document.createElement("button");
-  editBtn.textContent = t("action.edit");
-  editBtn.setAttribute("aria-label", t("aria.editSnippet"));
-  editBtn.addEventListener("click", () => {
-    if (openEditContainer && openEditContainer !== editContainer) {
-      openEditContainer.classList.add("hidden");
-    }
-    editContainer.classList.toggle("hidden");
-    openEditContainer = editContainer.classList.contains("hidden") ? null : editContainer;
-  });
-
-  const deleteBtn = document.createElement("button");
-  deleteBtn.textContent = t("action.delete");
-  deleteBtn.setAttribute("aria-label", t("aria.deleteSnippet"));
-  deleteBtn.addEventListener("click", async () => {
-    if (!confirm(t("confirm.delete"))) return;
-    const deleted = await deleteSnippetFromStorage(snippet.id);
-    if (!deleted) return;
-    showStatusKey("status.deleted");
-    await refreshCurrentView();
-  });
-
-  actions.appendChild(copyBtn);
-  actions.appendChild(editBtn);
-  actions.appendChild(deleteBtn);
-  return actions;
-}
-
-function createEditForm(snippet) {
-  const editContainer = document.createElement("div");
-  editContainer.className = "hidden";
-
-  const editTitleInput = document.createElement("input");
-  editTitleInput.type = "text";
-  editTitleInput.value = typeof snippet.title === "string" ? snippet.title : "";
-  editTitleInput.placeholder = t("placeholder.title");
-  editTitleInput.setAttribute("aria-label", t("aria.editTitle"));
-  editTitleInput.maxLength = domain.LIMITS.TITLE;
-
-  const editTagNameInput = document.createElement("input");
-  editTagNameInput.placeholder = t("placeholder.tagName");
-  editTagNameInput.setAttribute("aria-label", t("aria.editTagName"));
-  editTagNameInput.maxLength = domain.LIMITS.TAG_NAME;
-
-  const editTagCategoryInput = document.createElement("input");
-  editTagCategoryInput.placeholder = t("placeholder.tagCategory");
-  editTagCategoryInput.setAttribute("aria-label", t("aria.editTagCategory"));
-  editTagCategoryInput.maxLength = domain.LIMITS.TAG_CATEGORY;
-
-  const snippetTags = domain.getSnippetTags(snippet);
-  if (snippetTags.length > 0) {
-    editTagNameInput.value = snippetTags[0].name || "";
-    editTagCategoryInput.value = snippetTags[0].category || "";
   }
 
-  const editContentTextarea = document.createElement("textarea");
-  editContentTextarea.value = typeof snippet.content === "string" ? snippet.content : "";
-  editContentTextarea.placeholder = t("placeholder.content");
-  editContentTextarea.setAttribute("aria-label", t("aria.editContent"));
-  editContentTextarea.maxLength = domain.LIMITS.CONTENT;
+  // ==========================================
+  // Dynamic Template Modal
+  // ==========================================
 
-  const saveChangesBtn = document.createElement("button");
-  saveChangesBtn.textContent = t("action.saveChanges");
-  saveChangesBtn.setAttribute("aria-label", t("aria.saveChanges"));
-  saveChangesBtn.addEventListener("click", async () => {
-    const nextTitle = editTitleInput.value.trim();
-    const nextContent = editContentTextarea.value.trim();
-    if (!nextTitle || !nextContent) {
-      showStatusKey("error.requiredTitleContent", "error");
+  function openTemplateRunner(snippet) {
+    state.activeTemplateSnippet = snippet;
+    state.templateValues = {};
+
+    if (templateModalTitle) {
+      templateModalTitle.textContent = snippet.title || "Template";
+    }
+
+    if (templateFieldsContainer) {
+      templateFieldsContainer.innerHTML = "";
+    }
+
+    const vars = domain.extractTemplateVariables ? domain.extractTemplateVariables(snippet.content) : [];
+    vars.forEach((v) => {
+      state.templateValues[v.name] = v.defaultValue || "";
+
+      const fieldWrap = document.createElement("div");
+      fieldWrap.className = "template-var-field";
+
+      const lbl = document.createElement("label");
+      lbl.textContent = v.name;
+
+      const inp = document.createElement("input");
+      inp.type = "text";
+      inp.value = v.defaultValue || "";
+      inp.placeholder = v.defaultValue ? `デフォルト: ${v.defaultValue}` : `${v.name} を入力`;
+
+      inp.addEventListener("input", (e) => {
+        state.templateValues[v.name] = e.target.value;
+        updateTemplateLivePreview();
+      });
+
+      inp.addEventListener("keydown", (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+          e.preventDefault();
+          executeTemplateCopy();
+        }
+      });
+
+      fieldWrap.appendChild(lbl);
+      fieldWrap.appendChild(inp);
+      templateFieldsContainer.appendChild(fieldWrap);
+    });
+
+    updateTemplateLivePreview();
+
+    if (templateModal) {
+      templateModal.classList.remove("hidden");
+      // Focus first input
+      setTimeout(() => {
+        const firstInput = templateFieldsContainer.querySelector("input");
+        if (firstInput) firstInput.focus();
+      }, 50);
+    }
+  }
+
+  function updateTemplateLivePreview() {
+    if (!templateLivePreview || !state.activeTemplateSnippet) return;
+    const rendered = domain.renderTemplate
+      ? domain.renderTemplate(state.activeTemplateSnippet.content, state.templateValues)
+      : state.activeTemplateSnippet.content;
+    templateLivePreview.textContent = rendered;
+  }
+
+  async function executeTemplateCopy() {
+    if (!state.activeTemplateSnippet) return;
+    const rendered = domain.renderTemplate
+      ? domain.renderTemplate(state.activeTemplateSnippet.content, state.templateValues)
+      : state.activeTemplateSnippet.content;
+
+    await executeDirectCopy(rendered);
+    closeTemplateModal();
+  }
+
+  function closeTemplateModal() {
+    if (templateModal) {
+      templateModal.classList.add("hidden");
+    }
+    state.activeTemplateSnippet = null;
+    state.templateValues = {};
+  }
+
+  // ==========================================
+  // Editor Drawer (Quick Add / Edit)
+  // ==========================================
+
+  function openEditor(snippet = null) {
+    if (!editorDrawer) return;
+
+    if (snippet) {
+      // Edit mode
+      if (drawerTitle) drawerTitle.textContent = t("action.edit");
+      if (editSnippetId) editSnippetId.value = snippet.id;
+      if (titleInput) titleInput.value = snippet.title || "";
+      if (contentInput) contentInput.value = snippet.content || "";
+      const tagNames = Array.isArray(snippet.tags) ? snippet.tags.map((t) => t.name).join(", ") : "";
+      if (tagsInput) tagsInput.value = tagNames;
+      if (tagNameInput) tagNameInput.value = snippet.tags?.[0]?.name || "";
+      if (tagCategoryInput) tagCategoryInput.value = snippet.tags?.[0]?.category || "general";
+    } else {
+      // Create mode
+      if (drawerTitle) drawerTitle.textContent = t("section.add");
+      if (editSnippetId) editSnippetId.value = "";
+      if (titleInput) titleInput.value = "";
+      if (contentInput) contentInput.value = "";
+      if (tagsInput) tagsInput.value = "";
+      if (tagNameInput) tagNameInput.value = "";
+      if (tagCategoryInput) tagCategoryInput.value = "";
+    }
+
+    if (editorDrawer) {
+      editorDrawer.open = true;
+      editorDrawer.classList.remove("hidden");
+    }
+    setTimeout(() => {
+      if (contentInput) contentInput.focus();
+    }, 50);
+  }
+
+  function closeEditor() {
+    if (editorDrawer && editorDrawer.tagName.toLowerCase() === "details") {
+      // Keep open if details in standard view or toggle
+    } else if (editorDrawer) {
+      editorDrawer.classList.add("hidden");
+    }
+    if (editSnippetId) editSnippetId.value = "";
+    if (titleInput) titleInput.value = "";
+    if (contentInput) contentInput.value = "";
+    if (tagsInput) tagsInput.value = "";
+    if (tagNameInput) tagNameInput.value = "";
+    if (tagCategoryInput) tagCategoryInput.value = "";
+  }
+
+  async function handleSaveSnippet() {
+    const rawContent = (contentInput.value || "").trim();
+    if (!rawContent) {
+      showToast(t("error.requiredTitleContent"));
+      contentInput.focus();
       return;
     }
 
-    if (nextTitle.length > domain.LIMITS.TITLE) {
-      showErrorKey("error.titleTooLong", { max: domain.LIMITS.TITLE });
-      return;
+    let rawTitle = (titleInput.value || "").trim();
+    if (!rawTitle && domain.inferTitleFromContent) {
+      rawTitle = domain.inferTitleFromContent(rawContent);
     }
-    if (nextContent.length > domain.LIMITS.CONTENT) {
-      showErrorKey("error.contentTooLong", { max: domain.LIMITS.CONTENT });
-      return;
-    }
-
-    const nextTagName = editTagNameInput.value.trim();
-    const nextTagCategory = editTagCategoryInput.value.trim();
-
-    if (nextTagName.length > domain.LIMITS.TAG_NAME) {
-      showErrorKey("error.tagNameTooLong", { max: domain.LIMITS.TAG_NAME });
-      return;
-    }
-    if (nextTagCategory.length > domain.LIMITS.TAG_CATEGORY) {
-      showErrorKey("error.tagCategoryTooLong", { max: domain.LIMITS.TAG_CATEGORY });
-      return;
+    if (!rawTitle) {
+      rawTitle = "Untitled";
     }
 
-    const otherTags = domain.getSnippetTags(snippet).slice(1);
-    const firstTag = nextTagName ? [{ name: nextTagName, category: nextTagCategory || "general" }] : [];
-    const nextTags = [...firstTag, ...otherTags];
+    // Extract tags from tagsInput + tagNameInput + inline hashtags from content
+    const inputTagStr = [tagsInput?.value, tagNameInput?.value].filter(Boolean).join(", ");
+    const manualTags = inputTagStr
+      .split(/[,、]/)
+      .map((s) => s.trim().replace(/^#/, ""))
+      .filter(Boolean);
 
-    const updatedSnippet = {
-      ...snippet,
-      title: nextTitle,
-      content: nextContent,
-      tags: nextTags,
-      updatedAt: Date.now()
+    const inlineHashtags = domain.extractHashtags ? domain.extractHashtags(rawContent).map((t) => t.name) : [];
+    const allTagNames = Array.from(new Set([...manualTags, ...inlineHashtags]));
+    const tagObjects = allTagNames.map((name) => ({ name, category: "general" }));
+
+    const id = editSnippetId.value;
+    const now = Date.now();
+
+    if (id) {
+      // Update existing
+      const existing = state.snippets.find((s) => s.id === id);
+      if (existing) {
+        existing.title = rawTitle;
+        existing.content = rawContent;
+        existing.tags = tagObjects;
+        existing.updatedAt = now;
+        showToast(t("status.updated"));
+      }
+    } else {
+      // Create new
+      const newSnippet = {
+        id: (typeof utils !== "undefined" && utils.generateId) ? utils.generateId() : `id-${Math.random().toString(36).substr(2, 9)}`,
+        title: rawTitle,
+        content: rawContent,
+        tags: tagObjects,
+        favorite: false,
+        createdAt: now,
+        updatedAt: now
+      };
+      state.snippets.unshift(newSnippet);
+      showToast(t("status.saved"));
+    }
+
+    await setStoredSnippets(state.snippets);
+    closeEditor();
+    updateCounts();
+    renderDynamicTags();
+    renderSnippetList();
+  }
+
+  // ==========================================
+  // Sample Prompts
+  // ==========================================
+
+  async function addSamplePrompts() {
+    const existingIds = new Set(state.snippets.map((s) => s.id));
+    const toAdd = SAMPLE_SNIPPETS.filter((s) => !existingIds.has(s.id));
+
+    if (toAdd.length === 0) {
+      SAMPLE_SNIPPETS.forEach((s) => {
+        const copy = { ...s, id: `sample-${Date.now()}-${Math.random().toString(36).substr(2, 5)}` };
+        state.snippets.push(copy);
+      });
+    } else {
+      state.snippets.push(...toAdd);
+    }
+
+    await setStoredSnippets(state.snippets);
+    updateCounts();
+    renderDynamicTags();
+    renderSnippetList();
+    showToast(t("status.samplesAdded"));
+    closeSettingsModal();
+  }
+
+  // ==========================================
+  // Settings & Backup Modal
+  // ==========================================
+
+  function openSettingsModal() {
+    if (settingsModal) {
+      settingsModal.classList.remove("hidden");
+    }
+  }
+
+  function closeSettingsModal() {
+    if (settingsModal) {
+      settingsModal.classList.add("hidden");
+    }
+  }
+
+  function handleExport() {
+    const dataStr = JSON.stringify(state.snippets, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `textorium_export_${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(t("status.exported"));
+  }
+
+  function handleImport(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const raw = JSON.parse(event.target.result);
+        if (!Array.isArray(raw)) {
+          showToast(t("error.importInvalid"));
+          return;
+        }
+
+        const mergeFn = (typeof utils !== "undefined" && utils.mergeSnippets) ? utils.mergeSnippets : (a, b) => ({ ...a, ...b });
+        const result = domain.mergeImportedSnippets
+          ? domain.mergeImportedSnippets(state.snippets, raw, Date.now(), mergeFn)
+          : { snippets: raw, added: raw.length, updated: 0, invalid: 0 };
+
+        state.snippets = result.snippets;
+        await setStoredSnippets(state.snippets);
+
+        updateCounts();
+        renderDynamicTags();
+        renderSnippetList();
+        showToast(t("status.importFinished", result));
+        closeSettingsModal();
+      } catch (err) {
+        console.error("Import error:", err);
+        showToast(t("error.importInvalid"));
+      } finally {
+        importInput.value = "";
+      }
     };
-
-    const saved = await updateSnippetInStorage(updatedSnippet);
-    if (!saved) return;
-    showStatusKey("status.updated");
-    editContainer.classList.add("hidden");
-    if (openEditContainer === editContainer) {
-      openEditContainer = null;
-    }
-    await refreshCurrentView();
-  });
-
-  const cancelChangesBtn = document.createElement("button");
-  cancelChangesBtn.textContent = t("action.cancel");
-  cancelChangesBtn.setAttribute("aria-label", t("aria.cancelEditing"));
-  cancelChangesBtn.addEventListener("click", () => {
-    editContainer.classList.add("hidden");
-    if (openEditContainer === editContainer) {
-      openEditContainer = null;
-    }
-  });
-
-  const handleEditKeydown = (event) => {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      cancelChangesBtn.click();
-      return;
-    }
-    if (event.key === "Enter" && event.target !== editContentTextarea) {
-      event.preventDefault();
-      saveChangesBtn.click();
-      return;
-    }
-    if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && event.target === editContentTextarea) {
-      event.preventDefault();
-      saveChangesBtn.click();
-    }
-  };
-
-  editTitleInput.addEventListener("keydown", handleEditKeydown);
-  editTagNameInput.addEventListener("keydown", handleEditKeydown);
-  editTagCategoryInput.addEventListener("keydown", handleEditKeydown);
-  editContentTextarea.addEventListener("keydown", handleEditKeydown);
-
-  const editActions = document.createElement("div");
-  editActions.className = "edit-actions";
-  editActions.appendChild(saveChangesBtn);
-  editActions.appendChild(cancelChangesBtn);
-
-  editContainer.appendChild(editTitleInput);
-  editContainer.appendChild(editTagNameInput);
-  editContainer.appendChild(editTagCategoryInput);
-  editContainer.appendChild(editContentTextarea);
-  editContainer.appendChild(editActions);
-
-  return editContainer;
-}
-
-function displaySnippets(snippets) {
-  snippetList.textContent = "";
-
-  if (!snippets || snippets.length === 0) {
-    const emptyMessage = document.createElement("p");
-    emptyMessage.textContent = t("empty.noSnippets");
-    snippetList.appendChild(emptyMessage);
-    return;
+    reader.readAsText(file);
   }
 
-  const fragment = document.createDocumentFragment();
-  snippets.forEach((snippet) => fragment.appendChild(renderSnippetItem(snippet)));
-  snippetList.appendChild(fragment);
-}
+  // ==========================================
+  // Event Listeners Setup
+  // ==========================================
 
-async function init() {
-  if (!domain) {
-    showErrorKey("error.loadDomain");
-    showStatusKey("error.loadDomain", "error");
-    return;
+  function setupEventListeners() {
+    // Open Side Panel button
+    if (openSidePanelBtn) {
+      openSidePanelBtn.addEventListener("click", () => {
+        if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.sendMessage) {
+          chrome.runtime.sendMessage({ action: "openSidePanel" }, (response) => {
+            if (response && response.success) {
+              window.close();
+            }
+          });
+        }
+      });
+    }
+
+    // Quick Add
+    if (quickAddBtn) {
+      quickAddBtn.addEventListener("click", () => {
+        if (editorDrawer && !editorDrawer.classList.contains("hidden")) {
+          closeEditor();
+        } else {
+          openEditor();
+        }
+      });
+    }
+
+    if (closeDrawerBtn) closeDrawerBtn.addEventListener("click", closeEditor);
+    if (cancelDrawerBtn) cancelDrawerBtn.addEventListener("click", closeEditor);
+    if (saveSnippetBtn) saveSnippetBtn.addEventListener("click", handleSaveSnippet);
+
+    // Keyboard shortcut in editor: Ctrl/Cmd + Enter to save
+    if (contentInput) {
+      contentInput.addEventListener("keydown", (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+          e.preventDefault();
+          handleSaveSnippet();
+        }
+      });
+    }
+
+    // Search Box
+    if (searchInput) {
+      searchInput.addEventListener("input", () => {
+        state.searchQuery = searchInput.value;
+        if (clearSearchBtn) {
+          clearSearchBtn.classList.toggle("hidden", !state.searchQuery);
+        }
+        renderSnippetList();
+      });
+    }
+
+    if (clearSearchBtn) {
+      clearSearchBtn.addEventListener("click", () => {
+        state.searchQuery = "";
+        searchInput.value = "";
+        clearSearchBtn.classList.add("hidden");
+        renderSnippetList();
+        searchInput.focus();
+      });
+    }
+
+    // Quick Tabs
+    quickTabBtns.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        quickTabBtns.forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        state.activeTab = btn.dataset.tab;
+        renderSnippetList();
+      });
+    });
+
+    // Sort Selector & Direction
+    if (sortBySelect) {
+      sortBySelect.addEventListener("change", () => {
+        state.sortBy = sortBySelect.value;
+        renderSnippetList();
+      });
+    }
+
+    if (sortDirectionBtn) {
+      sortDirectionBtn.addEventListener("click", () => {
+        state.sortDir = state.sortDir === "desc" ? "asc" : "desc";
+        sortDirectionBtn.textContent = state.sortDir === "desc" ? "↓" : "↑";
+        renderSnippetList();
+      });
+    }
+
+    // Template Modal Buttons
+    if (closeTemplateModalBtn) closeTemplateModalBtn.addEventListener("click", closeTemplateModal);
+    if (cancelTemplateBtn) cancelTemplateBtn.addEventListener("click", closeTemplateModal);
+    if (copyRenderedBtn) copyRenderedBtn.addEventListener("click", executeTemplateCopy);
+
+    // Settings Modal Buttons
+    if (settingsToggleBtn) settingsToggleBtn.addEventListener("click", openSettingsModal);
+    if (closeSettingsModalBtn) closeSettingsModalBtn.addEventListener("click", closeSettingsModal);
+    if (exportBtn) exportBtn.addEventListener("click", handleExport);
+    if (importInput) importInput.addEventListener("change", handleImport);
+    if (addSamplesBtn) addSamplesBtn.addEventListener("click", addSamplePrompts);
+
+    // Theme Toggle
+    if (themeToggleBtn) {
+      themeToggleBtn.addEventListener("click", async () => {
+        state.darkMode = !state.darkMode;
+        document.body.classList.toggle("dark-mode", state.darkMode);
+        themeToggleBtn.textContent = state.darkMode ? "☀️" : "🌙";
+        const theme = state.darkMode ? "dark" : "light";
+        await saveSettings({
+          ...state.settings,
+          theme,
+          darkMode: state.darkMode,
+          language: state.language
+        });
+      });
+    }
+
+    // Language Select
+    if (languageSelect) {
+      languageSelect.addEventListener("change", async () => {
+        state.language = languageSelect.value;
+        applyLocalization();
+        renderSnippetList();
+        const theme = state.darkMode ? "dark" : "light";
+        await saveSettings({
+          ...state.settings,
+          theme,
+          darkMode: state.darkMode,
+          language: state.language
+        });
+      });
+    }
+
+    // Compatibility & search button event listeners
+    if (searchBtn) {
+      searchBtn.addEventListener("click", () => {
+        if (searchInput) {
+          state.searchQuery = searchInput.value;
+          if (clearSearchBtn) {
+            clearSearchBtn.classList.toggle("hidden", !state.searchQuery);
+          }
+        }
+        renderSnippetList();
+      });
+    }
+    if (applySortBtn) applySortBtn.addEventListener("click", () => renderSnippetList());
+    if (clearFilterBtn) {
+      clearFilterBtn.addEventListener("click", () => {
+        state.activeTab = "all";
+        state.activeTag = null;
+        state.searchQuery = "";
+        if (searchInput) searchInput.value = "";
+        quickTabBtns.forEach((b) => b.classList.toggle("active", b.dataset.tab === "all"));
+        renderDynamicTags();
+        renderSnippetList();
+      });
+    }
   }
-  await applyInitialSettings();
-  allSnippets = await getStoredSnippets() || [];
-  await refreshCurrentView();
-}
 
-init();
+  // ==========================================
+  // Initialization
+  // ==========================================
+
+  async function init() {
+    // 1. Load Settings
+    const settings = await loadSettings();
+    state.settings = settings;
+    state.language = settings.language || (navigator.language.startsWith("ja") ? "ja" : "en");
+    state.darkMode = settings.theme === "dark" || !!settings.darkMode;
+
+    document.body.classList.toggle("dark-mode", state.darkMode);
+    if (themeToggleBtn) {
+      themeToggleBtn.textContent = state.darkMode ? "☀️" : "🌙";
+    }
+
+    applyLocalization();
+    setupEventListeners();
+
+    // 2. Load Snippets
+    const stored = await getStoredSnippets();
+    state.snippets = stored;
+
+    updateCounts();
+    renderDynamicTags();
+    renderSnippetList();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();

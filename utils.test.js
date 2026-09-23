@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { generateId, mergeSnippets, normalizeTagForMerge } = require('./utils.js');
+const { generateId, mergeSnippets, normalizeTagForMerge, normalizeTag } = require('./utils.js');
 
 test('normalizeTagForMerge normalizes valid tags', () => {
   const tag = { name: '  Work  ', category: '  Job  ' };
@@ -35,7 +35,7 @@ test('normalizeTagForMerge preserves extra fields', () => {
   assert.strictEqual(normalized.id, 1);
   assert.strictEqual(normalized.name, 'Work');
   assert.strictEqual(normalized.category, 'general');
-const { generateId, mergeSnippets, normalizeTag } = require('./utils.js');
+});
 
 test('normalizeTag normalizes valid tag and returns null for invalid', () => {
   assert.deepStrictEqual(normalizeTag({ name: " Work ", category: " " }), {
