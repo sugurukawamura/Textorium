@@ -1,158 +1,141 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Textorium User Manual / ユーザーマニュアル</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Textorium 2.0 | ユーザーマニュアル / User Guide</title>
   <style>
-    :root {
-      --bg: #ffffff;
-      --text: #333333;
-      --link: #0066cc;
-      --code-bg: #f4f4f4;
-      --border: #dddddd;
-    }
+    :root { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; line-height: 1.7; color: #202938; background: #fbfcff; }
+    body { max-width: 860px; margin: 0 auto; padding: 24px 20px 70px; }
+    h1, h2, h3 { line-height: 1.35; }
+    h1 { font-size: 2rem; margin-bottom: .3em; }
+    h2 { border-bottom: 1px solid #cbd5e1; padding-bottom: .35em; margin-top: 2em; }
+    h3 { margin-top: 1.6em; }
+    a { color: #324bbb; }
+    nav { padding: 14px 20px; border: 1px solid #cbd5e1; border-radius: 12px; }
+    nav ul { margin: .5em 0; padding-left: 20px; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; background: #e9edf5; border-radius: 4px; }
+    code { padding: 2px 5px; }
+    pre { padding: 14px; overflow-x: auto; white-space: pre-wrap; }
+    pre code { padding: 0; }
+    .en { color: #4b5563; margin-top: .3em; }
+    .note { border-left: 4px solid #445bce; padding: 10px 16px; background: #eef2ff; margin-top: 1em; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px; border: 1px solid #cbd5e1; text-align: left; vertical-align: top; }
+    footer { margin-top: 3em; border-top: 1px solid #cbd5e1; font-size: .9em; padding-top: 1em; }
     @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #1a1a1a;
-        --text: #e0e0e0;
-        --link: #66b3ff;
-        --code-bg: #333333;
-        --border: #444444;
-      }
-    }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      line-height: 1.6;
-      color: var(--text);
-      background-color: var(--bg);
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 20px;
-    }
-    h1, h2, h3 {
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 10px;
-    }
-    a {
-      color: var(--link);
-      text-decoration: none;
-    }
-    a:hover {
-      text-decoration: underline;
-    }
-    code {
-      background-color: var(--code-bg);
-      padding: 2px 4px;
-      border-radius: 4px;
-      font-family: monospace;
-    }
-    .lang-en {
-      color: #666;
-      font-size: 0.9em;
-      margin-bottom: 1em;
-      display: block;
-    }
-    @media (prefers-color-scheme: dark) {
-      .lang-en {
-        color: #aaa;
-      }
-    }
-    .screenshot {
-      max-width: 100%;
-      height: auto;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      margin: 20px 0;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-    .note {
-      background-color: var(--code-bg);
-      padding: 10px;
-      border-left: 4px solid var(--link);
-      margin: 10px 0;
-    }
-    nav ul {
-      list-style: none;
-      padding: 0;
-    }
-    nav li {
-      margin-bottom: 5px;
+      :root { color: #e5e7eb; background: #121824; }
+      a { color: #a5b4fc; }
+      nav, h2, th, td, footer { border-color: #475569; }
+      .en { color: #c4cbd8; }
+      code, pre { background: #293548; }
+      .note { background: #202f4e; border-color: #a5b4fc; }
     }
   </style>
 </head>
 <body>
+  <header>
+    <h1>Textorium 2.0</h1>
+    <p>ユーザーマニュアル / User Guide</p>
+    <p>Textorium は、文章・コード片・プロンプトを Chrome のローカルストレージに保存し、ポップアップやサイドパネルで呼び出せる拡張機能です。</p>
+    <p class="en" lang="en">Textorium is a local-first Chrome extension for saving and reusing snippets and prompt templates from a popup or side panel.</p>
+  </header>
 
-  <h1>Textorium User Manual / ユーザーマニュアル</h1>
-
-  <p>Textoriumは、ローカルでテキストスニペットを管理するためのChrome拡張機能です。<br>
-  Textorium is a Chrome extension for managing text snippets locally.</p>
-
-  <nav>
-    <h2>Table of Contents / 目次</h2>
+  <nav aria-label="目次 / Table of contents">
+    <strong>目次 / Contents</strong>
     <ul>
-      <li><a href="#installation">1. Installation / インストール</a></li>
-      <li><a href="#creating">2. Creating Snippets / スニペットの作成</a></li>
-      <li><a href="#viewing">3. Viewing & Searching / 閲覧と検索</a></li>
-      <li><a href="#backup">4. Backup & Restore / バックアップと復元</a></li>
+      <li><a href="#install">1. インストール / Install</a></li>
+      <li><a href="#create">2. 登録・編集 / Create and edit</a></li>
+      <li><a href="#templates">3. プロンプトテンプレート / Templates</a></li>
+      <li><a href="#find">4. 検索と整理 / Search and organize</a></li>
+      <li><a href="#backup">5. バックアップ / Backup</a></li>
+      <li><a href="#settings">6. その他の操作と注意 / Settings and notes</a></li>
     </ul>
   </nav>
 
-  <section id="installation">
-    <h2>1. Installation / インストール</h2>
-    <p>
-      Chrome拡張機能管理ページ（<code>chrome://extensions</code>）を開き、「デベロッパーモード」を有効にして、「パッケージ化されていない拡張機能を読み込む」からこのフォルダを選択します。
-    </p>
-    <p class="lang-en">
-      Open Chrome extensions page (<code>chrome://extensions</code>), enable "Developer mode", click "Load unpacked", and select this folder.
-    </p>
+  <section id="install">
+    <h2>1. インストール / Install</h2>
+    <ol>
+      <li>GitHub からリポジトリをダウンロードし、フォルダを展開します。</li>
+      <li>Chrome で <code>chrome://extensions</code> を開き、デベロッパーモードをオンにします。</li>
+      <li>「パッケージ化されていない拡張機能を読み込む」で <code>manifest.json</code> のあるフォルダを指定します。</li>
+      <li>ツールバーの Textorium アイコンをクリックして起動します。</li>
+    </ol>
+    <p class="en" lang="en">Download the repository. In <code>chrome://extensions</code>, enable Developer mode, choose “Load unpacked,” and select the folder containing <code>manifest.json</code>. Click the extension icon to open it.</p>
+    <p>ポップアップ右上の「◨ サイド」からサイドパネルを開くこともできます。Chrome の対応環境で利用してください。</p>
+    <p class="en" lang="en">Use “◨ Side” in the popup to request the Chrome side panel (where supported).</p>
   </section>
 
-  <section id="creating">
-    <h2>2. Creating Snippets / スニペットの作成</h2>
-    <p>
-      画面上部のフォームにタイトルと本文を入力し、「保存」ボタンをクリックします。タグやカテゴリを追加して整理することもできます。
-    </p>
-    <p class="lang-en">
-      Enter a title and content in the form at the top, then click "Save". You can also add tags and categories for organization.
-    </p>
-    <img src="images/01-create.svg" alt="Create Snippet Screen" class="screenshot">
+  <section id="create">
+    <h2>2. 登録・編集 / Create and edit</h2>
+    <ol>
+      <li>「+ 新規」で入力欄を開き、本文を入力します。</li>
+      <li>タイトルは任意です。空欄の場合、本文の最初の有効な行から生成されます。</li>
+      <li>必要ならタグ名を入力します。本文に <code>#work</code> のように書いたタグも抽出されます。</li>
+      <li>「保存」を押します。本文入力中は <code>Ctrl+Enter</code>（macOS は <code>⌘+Enter</code>）でも保存できます。</li>
+    </ol>
+    <p class="en" lang="en">Click “+ New,” enter content, optionally add a title and tag names, and save. The title can be inferred from the content. Inline hashtags such as <code>#work</code> are extracted. Use Ctrl+Enter (Cmd+Enter on Mac) in the content editor to save.</p>
+    <p>保存済みカードの「編集」からタイトル・本文・タグを変更できます。削除するときは確認ダイアログが出ます。</p>
+    <p class="en" lang="en">Use a snippet card’s Edit action to update it. Deletion asks for confirmation.</p>
+    <div class="note">
+      <strong>現行版の制約 / Current limitation:</strong> 2.0 の保存・インライン編集処理はタグカテゴリを <code>general</code> として保存します。画面にカテゴリ入力欄がありますが、新規保存時にはその入力値を反映しません。
+      <span class="en" lang="en">The current 2.0 editor saves tags under category <code>general</code>; the visible category field is not applied by the new-save handler.</span>
+    </div>
   </section>
 
-  <section id="viewing">
-    <h2>3. Viewing & Searching / 閲覧と検索</h2>
-    <p>
-      保存されたスニペットはリスト形式で表示されます。検索バーを使ってキーワードで絞り込んだり、タグでフィルタリングしたりできます。
-    </p>
-    <p class="lang-en">
-      Saved snippets are displayed in a list. You can filter them by keyword using the search bar or by tags.
-    </p>
-    <img src="images/02-list.svg" alt="Snippet List Screen" class="screenshot">
+  <section id="templates">
+    <h2>3. プロンプトテンプレート / Templates</h2>
+    <p>本文に <code>{{name}}</code> または <code>{{name:default}}</code> を書くと、穴埋め用の変数として認識されます。</p>
+    <p class="en" lang="en">Use <code>{{name}}</code> or <code>{{name:default}}</code> in the content to create fill-in variables.</p>
+    <pre><code>以下の文章を{{language:英語}}に翻訳してください。
+{{text}}</code></pre>
+    <ol>
+      <li>保存したテンプレートの「展開してコピー」を選びます。</li>
+      <li>変数ごとの入力欄に値を入力します（デフォルト値がある場合は初期値として表示）。</li>
+      <li>プレビューを確認して「コピー」を押します。</li>
+    </ol>
+    <p class="en" lang="en">Choose “Fill &amp; Copy,” enter the variable values, review the live preview, and copy the rendered text. Variables are text substitutions, not executable code.</p>
+  </section>
 
-    <h3>Searching / 検索</h3>
-    <p>
-      タイトル、本文、タグに含まれるテキストで検索できます。
-    </p>
-    <p class="lang-en">
-      You can search by text included in the title, content, or tags.
-    </p>
-    <img src="images/03-search.svg" alt="Search Screen" class="screenshot">
+  <section id="find">
+    <h2>4. 検索と整理 / Search and organize</h2>
+    <table>
+      <thead><tr><th>機能 / Feature</th><th>操作 / Action</th></tr></thead>
+      <tbody>
+        <tr><td>検索 / Search</td><td>上部の検索欄にキーワードを入力して絞り込みます。 / Type into the search box to narrow results.</td></tr>
+        <tr><td>タブ / Tabs</td><td>「すべて」「お気に入り」「テンプレート」を切り替えます。 / Switch between All, Favorites and Templates.</td></tr>
+        <tr><td>タグ / Tags</td><td>表示されたタグチップを使って絞り込みます。 / Use tag chips for filtering.</td></tr>
+        <tr><td>並び替え / Sort</td><td>作成日・更新日・タイトル・お気に入り優先を選択し、昇順 / 降順を切り替えます。 / Choose a sort key and direction.</td></tr>
+        <tr><td>コピー / Copy</td><td>カードの「コピー」から通常の本文をクリップボードへ送ります。 / Copy a regular snippet from its card.</td></tr>
+      </tbody>
+    </table>
   </section>
 
   <section id="backup">
-    <h2>4. Backup & Restore / バックアップと復元</h2>
-    <p>
-      「バックアップ/復元」セクションを展開すると、スニペットデータをJSON形式でエクスポートしたり、以前のバックアップから復元したりできます。
-    </p>
-    <p class="lang-en">
-      Expand the "Backup / Restore" section to export snippet data as JSON or restore from a previous backup.
-    </p>
-    <img src="images/04-backup.svg" alt="Backup Screen" class="screenshot">
+    <h2>5. バックアップ / Backup and restore</h2>
+    <ol>
+      <li>画面右上の <strong>⚙️</strong> を開きます。</li>
+      <li><strong>「JSONをエクスポート」</strong>でスニペット一覧をファイルとして保存します。</li>
+      <li><strong>「JSONをインポート」</strong>で保存済み JSON を選びます。</li>
+      <li>同じ <code>id</code> のデータは取り込み時にマージされ、追加・更新・無効の件数が通知されます。</li>
+    </ol>
+    <p class="en" lang="en">Open ⚙️ Settings, export JSON for backup, or import an exported JSON array. Existing IDs are merged, and the app reports added, updated and invalid entries.</p>
+    <div class="note">
+      <strong>重要 / Important:</strong> データは Chrome の <code>chrome.storage.local</code> に保存され、別端末と自動同期されません。Chrome プロファイルや拡張機能の削除前には必ずエクスポートしてください。
+      <span class="en" lang="en">Data is stored locally in the Chrome profile, not automatically synced. Export backups before removing your profile or the extension.</span>
+    </div>
   </section>
 
-  <footer>
-    <p>&copy; 2024 Textorium Team</p>
-  </footer>
+  <section id="settings">
+    <h2>6. その他の操作と注意 / Settings and notes</h2>
+    <p>ライト / ダークテーマ、日本語 / 英語表示を切り替えられます。⚙️ からサンプルプロンプトを追加できます。</p>
+    <p class="en" lang="en">You can switch light/dark theme and Japanese/English display. The Settings menu also offers example prompts.</p>
+    <p>Textorium はアカウント登録・クラウド同期・テレメトリーを実装していません。一方、機密データ向けの暗号化保管庫ではありません。保存する内容はご自身で管理してください。</p>
+    <p class="en" lang="en">Textorium implements no sign-in, cloud sync, or telemetry. It is not an encrypted secret vault; avoid storing highly sensitive credentials.</p>
+    <p>詳しいデータ形式、テスト・開発手順はリポジトリの <a href="../README.md">README.md</a> と <a href="ARCHITECTURE.md">ARCHITECTURE.md</a> を参照してください。</p>
+  </section>
 
+  <footer>Textorium 2.0 — This manual describes the current repository implementation. Images from the legacy manual are intentionally omitted until updated 2.0 screenshots are verified.</footer>
 </body>
 </html>
