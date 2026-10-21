@@ -1,61 +1,46 @@
-# Textorium Product Review (Baseline)
+# Textorium 2.0 — Product Review & Backlog
 
-This document captures a foundational review of current functionality and a practical roadmap.
+This is a **review of the current repository implementation**, not a release promise or a guarantee that every browser scenario is tested. Check [README.md](README.md) for confirmed UI entry points and [docs/TESTING.md](docs/TESTING.md) for QA coverage.
 
-## 1. Current Strengths
+## Implemented capabilities
 
-- Very low operational complexity (no build toolchain, no backend)
-- Strong privacy posture (local-only)
-- Core CRUD flow already implemented
-- Backup/restore path exists (export/import JSON)
+- Local-first Chrome extension with popup and Side Panel (`manifest.json`).
+- Snippets and dynamic `{{variable:default}}` templates (`snippet-domain.js` / `popup.js`).
+- Live preview and copy of rendered templates.
+- Title inference, inline hashtag extraction, tabs for All/Favorites/Templates, search, tags, sorting.
+- Local JSON export/import with ID-based merging; theme and language settings.
 
-## 2. Core Gaps (Root-Level)
+## Observed gaps to validate and prioritize
 
-- Discoverability can degrade as snippet count grows
-- Tag model exists but management UX is still minimal
-- Import reliability and merge semantics need clear policy and tests
-- Manual QA exists but lacks structured release checklist in repository docs
-- Product scope boundaries are implied, not always explicit to new contributors
+| Area | Observation from code | Suggested next step |
+| --- | --- | --- |
+| Tags | The 2.0 new-save and inline-edit handlers set categories to `general` even though the editor shows a category field. | Define category UX, preserve category during edits, add regression tests. |
+| End-to-end tests | `ui-functional.test.mjs` includes selectors and element order from the earlier popup layout. | Rewrite tests for current popup and Side Panel flows, templates, imports and copy. |
+| Manual images | `docs/images/*.svg` are legacy placeholder images; `scripts/generate-manual-screenshots.mjs` targets the earlier layout. | Regenerate real 2.0 screenshots and review the script before publishing them. |
+| HTML maintenance | `popup.html` and `sidepanel.html` duplicate markup; compatibility sections contain legacy controls. | Audit accessible IDs, remove obsolete compatibility elements only after updating tests. |
+| User messaging | Import/export and clipboard operations depend on Chrome/browser context. | Improve error cases and manual QA for failures / large data. |
+| Versioning | `manifest.json` states 2.0.0 while `package.json` states 1.0.0. | Align build/test package metadata once versioning policy is decided. |
 
-## 3. Product Principles Going Forward
+These are **candidate tasks** and code-review observations. Runtime behavior has not been comprehensively audited solely by maintaining the documentation.
 
-- Local-first by default
-- Popup-first interaction (no page injection)
-- Backward-compatible data evolution
-- Reliability and accessibility before feature breadth
-- Small, reversible changes over large rewrites
+## Principles
 
-## 4. Prioritized Roadmap
+1. Stay local-first: no unexpected transmission of snippet content.
+2. Preserve storage and import compatibility with previous versions.
+3. Prefer predictable editing, recovery and export over visual polish.
+4. Test both Chrome UI entry points, including keyboard and accessibility.
+5. Use small, reversible PRs with verified outcomes.
 
-### Phase A: Reliability and Maintainability
+## Before release
 
-- Harden import validation/migration paths
-- Add more unit tests around merge and normalization
-- Separate domain logic from DOM rendering for easier testing
+- [ ] Inspect the manifest permissions and storage changes
+- [ ] Verify snippet edit, copy, search, favorite, sort and deletion
+- [ ] Verify template default values, preview and copying
+- [ ] Exercise JSON backup and restore with test data
+- [ ] Confirm popup and Side Panel manually in Chrome
+- [ ] Run and repair applicable automated tests
+- [ ] Keep README, manual and architecture consistent
 
-### Phase B: Retrieval Quality
+## Out of scope unless explicitly agreed
 
-- Improved tag filtering options (name/category combinations)
-- Better sorting presets and persisted view preferences
-- Optional saved filters in local `settings`
-
-### Phase C: Editing Ergonomics
-
-- Richer multi-tag editing UX
-- Better keyboard focus flow between list and edit form
-- Clear visual state for active filters/sort
-
-## 5. Non-Goals (Unless Explicitly Requested)
-
-- Remote sync / cloud backend
-- Analytics or telemetry
-- Content script based webpage UI injection
-- Framework or bundler migration
-
-## 6. Release Readiness Criteria
-
-- No permission creep in manifest
-- Schema compatibility maintained
-- Import/export roundtrip verified
-- Keyboard and accessibility labels remain intact
-- README and CONTRIBUTING are consistent with behavior
+Cloud sync, account login, telemetry, content-script injection, and adoption of a framework or bundler.
