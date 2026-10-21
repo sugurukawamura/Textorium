@@ -1,165 +1,112 @@
-# Textorium 2.0 — The Intelligent Local Palette
+# Textorium 2.0
 
-Textorium is a modern, local-first Chrome extension (Manifest V3) for managing text snippets, AI prompts, and dynamic templates in a persistent Side Panel or popup.
+**Textorium** は、定型文・コード片・AIプロンプトをブラウザー内に保存し、必要なときに検索・コピーできる Chrome 拡張機能です。Manifest V3 を使い、ポップアップとサイドパネルの両方で動作します。バックエンドやビルド工程はありません。
 
-- **Side Panel First**: Keep your palette open alongside ChatGPT, Claude, Gmail, Notion, or GitHub.
-- **Dynamic Prompt Templates**: Define variables like `{{target:beginner}}` and fill them out interactively before copying.
-- **Zero-Friction Capturing**: Automatic title inference and `#hashtag` parsing.
-- **Strict Privacy**: Local storage only (`chrome.storage.local`), zero external network requests, zero telemetry.
+> **データの保存先:** `chrome.storage.local`。クラウド同期、ユーザー登録、テレメトリーは実装していません。ブラウザープロファイルや拡張機能を削除するとデータを失う可能性があるため、定期的に JSON でエクスポートしてください。
 
-## 1. 使い方 (日本語)
+## はじめる
 
-### インストール
+1. リポジトリをクローンまたは ZIP で取得し、展開します。
+2. Chrome の `chrome://extensions` を開き、**デベロッパーモード**を有効化します。
+3. **パッケージ化されていない拡張機能を読み込む**から、`manifest.json` があるリポジトリのルートを選択します。
+4. 拡張機能アイコンをクリックしてポップアップを開きます。
+5. ポップアップの **「◨ サイド」** ボタンからサイドパネル表示を要求できます（利用可能な Chrome 環境が必要です）。
 
-1. Chrome で `chrome://extensions` を開く
-2. 右上の `デベロッパーモード` を ON
-3. `パッケージ化されていない拡張機能を読み込む` をクリック
-4. このリポジトリのルートフォルダを選択
-5. ツールバーの Textorium アイコンをクリック（ポップアップまたは「◨ サイドパネル」で起動）
+ソースを修正した場合は `chrome://extensions` で拡張機能を再読み込みしてください。Node.js は拡張機能の利用には不要です。
 
-### 基本操作と新機能
+## できること
 
-1. **常駐型 Side Panel**:
-   - ポップアップ右上の `◨ サイドパネル` ボタンをクリックすると、ブラウザ右側に常時固定表示。
-   - 他のタブやWebページを操作しても閉じず、スムーズにプロンプトや定型文を参照・コピーできます。
-2. **動的プロンプトテンプレート (`{{変数名:デフォルト値}}`)**:
-   - 本文に `{{変数名}}` または `{{変数名:デフォルト値}}` を含めると、自動的に `⚡️ TEMPLATE` として認識されます。
-   - 「⚡️ 展開してコピー」をクリックすると入力モーダルが開き、穴埋めした上でリアルタイムプレビュー＆即時コピーが可能です。
-3. **ゼロフリクション登録**:
-   - 右上の `+ 新規作成` をクリック。
-   - タイトルは空欄のままでも本文1行目から自動推測されます。
-   - 本文中の `#tag` も自動抽出されます。
-4. **ワンクリックコピー**:
-   - 通常のスニペットはカードの「📋 コピー」を押すだけでクリップボードに即座にコピーされます。
-5. **クイックタブ & タグフィルタ**:
-   - `すべて`、`★ お気に入り`、`⚡️ テンプレート` のタブ切り替えや、タグチップをクリックして瞬時に抽出。
-6. **バックアップ & サンプル**:
-   - 右上の `⚙️` アイコンから JSON エクスポート/インポート、便利なサンプルプロンプトの追加が可能です。
+| 操作 | 使い方 |
+| --- | --- |
+| 登録 | **「+ 新規」** またはエディターを開き、本文を入力して保存。タイトルが空なら本文から自動生成します。 |
+| タグ | タグ名の入力や、本文中の `#work` などのハッシュタグからタグ候補を作成します。 |
+| 検索 | 検索欄に入力すると、保存したテキストを絞り込みます。 |
+| 絞り込み | **すべて / お気に入り / テンプレート** のタブ、タグチップを使用します。 |
+| 並び替え | 作成日・更新日・タイトル・お気に入り優先を選べます。 |
+| コピー・編集・削除 | スニペットカードのアクションを使用します。削除前には確認が出ます。 |
+| 設定 | **⚙️** から JSON バックアップ・復元、サンプルプロンプト追加を行います。 |
+| 表示 | テーマ切替（ライト / ダーク）と言語切替（日本語 / 英語）に対応します。 |
 
-## 2. Quick Start (English)
+**動的テンプレート:** 本文中の `{{name}}` または `{{name:default}}` を変数として認識します。
 
-1. Open `chrome://extensions` and enable Developer mode.
-2. Click `Load unpacked` and select this repository root.
-3. Click the extension icon in the toolbar.
-4. Click `◨ Side Panel` in the top right to pin Textorium alongside your active browser tab.
-5. Create prompts with variables (e.g. `Summarize for {{target:beginners}}:\n{{content}}`) and enjoy interactive prompt filling and zero-click copying.
+```text
+以下を{{language:英語}}に翻訳してください。
+{{text}}
+```
 
-## 3. Core Features (Textorium 2.0)
+テンプレートカードの **「展開してコピー」** から値を入力し、置換後のテキストをプレビューしてコピーできます。変数は文字列置換であり、コードとして実行されません。
 
-- **Persistent Side Panel**: Full integration with Chrome Side Panel API (`sidepanel.html`).
-- **Dynamic Template Runner**: Live interactive variable substitution with `{{variable:default}}` syntax.
-- **Instant Search & Dynamic Tags**: Instant multi-keyword search, dynamic tag bubbles, and tab-based quick filtering.
-- **One-Click Quick Copy & Toast**: Copy feedback directly on the card with visual toast notifications.
-- **Inferred Titles & Hashtags**: No mandatory title/category burden; automatic title deduction and hashtag discovery.
-- **Premium Responsive UI**: Curated slate/indigo aesthetic, dark mode support, and glassmorphic micro-animations.
-- **Export & Import JSON**: Safe local backup and restore with ID-based merging.
+**編集時のショートカット:** エディターの本文欄で `Ctrl+Enter`（macOS は `⌘+Enter`）を押すと保存できます。
 
-## 4. Data Model
+より詳しい操作方法は [ユーザーマニュアル](docs/manual.html) を参照してください。
 
-Stored under key `snippets` in `chrome.storage.local`.
+## 現時点の制約
 
-```jsonc
+- タグの保存・編集では、現在の 2.0 UI はカテゴリに `general` を設定します。エディターにカテゴリ入力欄はありますが、新規保存処理ではその値を使用していません。カテゴリを含む既存 JSON は読み込み処理で扱われます。
+- 同一 Chrome プロファイル内のローカル保存であり、別端末への同期機能はありません。
+- サイドパネル起動やクリップボード機能は、Chrome の環境・権限・実行状況によって制限されることがあります。
+- Playwright の既存テストには 2.0 UI とセレクターが合っていない箇所があります。自動テストの結果だけで UI の正常動作を保証しないでください。詳細は [テストガイド](docs/TESTING.md)。
+
+## バックアップとデータ形式
+
+**⚙️ → エクスポート**で JSON ファイルを保存します。**⚙️ → JSON をインポート**でスニペット配列を読み込みます。インポートは `id` をキーとして既存スニペットとマージし、不正な項目は除外して件数を表示します。重要データはインポート前にもエクスポートしてください。
+
+保存キーは `chrome.storage.local` 内の `snippets`（配列）です。各要素のおおむねの形式は以下のとおりです。
+
+```json
 {
-  "id": "id-<unique>",
-  "title": "string",
-  "content": "string",
-  "tags": [{ "name": "string", "category": "string" }],
+  "id": "id-example",
+  "title": "翻訳プロンプト",
+  "content": "{{text}} を英訳してください",
+  "tags": [
+    { "name": "work", "category": "general", "key": "work:general" }
+  ],
   "favorite": false,
   "createdAt": 1730000000000,
   "updatedAt": 1730000000000
 }
 ```
 
-Rules:
+`tags[].key` はタグ正規化時に生成されます。過去のデータでは存在しない場合があるため、互換性を保って扱う必要があります。`createdAt` / `updatedAt` は Unix 時刻のミリ秒値です。設定は別キー `settings` に保存します。
 
-- Backward compatible with existing stored data
-- `updatedAt` is refreshed on edit/import merge
-- `createdAt` and `updatedAt` are set on create
-- Unknown fields are preserved during import merge
+マージ・正規化の詳細は [アーキテクチャ](docs/ARCHITECTURE.md) を参照してください。
 
-## 5. Project Structure
+## 開発とテスト
 
-- `popup.html`: popup layout and styles
-- `popup.js`: popup UI + chrome API integration
-- `snippet-domain.js`: pure domain logic (filter/sort/import normalization)
-- `utils.js`: helpers (`generateId`, merge policy)
-- `utils.test.js`: unit tests for utilities
-- `snippet-domain.test.js`: unit tests for domain logic
+テスト用には Node.js と npm が必要です。ブラウザー自体の拡張機能実行に npm は必要ありません。
 
-## 6. Testing
-
-### Unit tests
-
-- Command: `npm test`
-- Scope: pure logic in `utils.js` and `snippet-domain.js`
-
-### Visual layout test
-
-- Command: `npm run test:ui`
-- Runs Playwright headless checks on `popup.html` at multiple viewport sizes
-- Detects horizontal overflow/clipping and saves screenshots to `artifacts/ui-layout/`
-
-### Manual Screenshots
-
-To regenerate screenshots for the manual (requires Playwright):
-
-```bash
-node scripts/generate-manual-screenshots.mjs
-```
-
-### PATH troubleshooting (Windows)
-
-If `npm` or `node` is not found, add `C:\Program Files\nodejs` to PATH, then reopen terminal.
-
-PowerShell example:
-
-```powershell
-$env:Path = "C:\Program Files\nodejs;$env:Path"
+```sh
+npm ci
 npm test
+npx playwright install chromium
+npm run test:ui
+npm run test:functional
 ```
 
-### Manual QA checklist
+`npm run test:all` は上記の自動テスト群をまとめて呼びます。ただし、現行の UI テストとスクリーンショット生成スクリプトには旧UIの前提が残っています。手動の Chrome 拡張機能確認を必ず併用してください。
 
-1. Add/edit/delete snippets
-2. Confirm search/filter/sort behavior
-3. Toggle favorites and verify filtering
-4. Export JSON -> clear storage -> import JSON -> verify roundtrip
-5. Reload extension and browser, then confirm persistence
+| 役割 | 主なファイル |
+| --- | --- |
+| Chrome 拡張機能定義 | `manifest.json`, `background.js` |
+| ポップアップ / サイドパネル | `popup.html`, `sidepanel.html`, `popup.css` |
+| 画面・ストレージ操作 | `popup.js`, `i18n.js` |
+| ドメインロジック | `snippet-domain.js`, `utils.js` |
+| テスト | `*.test.js`, `ui-layout-check.mjs`, `ui-functional.test.mjs` |
+| ガイド | `docs/manual.html`, `docs/ARCHITECTURE.md`, `docs/TESTING.md` |
 
-## 7. Development Workflow
+## ドキュメント
 
-New feature development should be done on a dedicated branch, not directly on `main`.
+- [操作マニュアル（日本語 / English）](docs/manual.html)
+- [構成とデータ設計](docs/ARCHITECTURE.md)
+- [検証・手動QA](docs/TESTING.md)
+- [開発への参加方法](CONTRIBUTING.md)
+- [AI エージェントへの指示](AGENTS.md)
+- [プロダクト課題と改善候補](PRODUCT_REVIEW.md)
 
-Branch examples:
+## Privacy / Security
 
-- `feat/<short-description>`
-- `fix/<short-description>`
-- `refactor/<short-description>`
-- `docs/<short-description>`
-- `chore/<short-description>`
+Textorium does not implement account sign-in, cloud sync, analytics, or telemetry. Its current manifest requests `storage` and `sidePanel`; it has no declared content scripts or host permissions. Stored snippets are **local browser data, not encrypted vault storage**. Review extension permissions before any future expansion.
 
-Commit message format:
+## License
 
-`<type>: <summary>`
-
-Examples:
-
-- `feat: add tag filter composition with search`
-- `fix: preserve unknown fields in import merge`
-- `docs: reorganize readme for ja/en usage`
-
-Detailed policy: `CONTRIBUTING.md`
-
-## 8. Security and Privacy
-
-- No new manifest permissions unless required and reviewed
-- No content scripts unless explicitly requested
-- No telemetry/analytics/network calls
-
-## 9. Product Notes
-
-Longer review and roadmap: `PRODUCT_REVIEW.md`
-
-## 10. License
-
-This project is licensed under the [MIT License](LICENSE).
+[MIT License](LICENSE).
