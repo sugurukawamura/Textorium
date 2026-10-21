@@ -87,13 +87,17 @@ function normalizeTag(tag) {
 }
 
 function normalizeTagForMerge(tag) {
-  return normalizeTag(tag);
+  const normalized = normalizeTag(tag);
+  if (!normalized) return null;
+  const { key, ...withoutKey } = normalized;
+  return withoutKey;
 }
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     generateId,
     mergeSnippets,
+    normalizeTagForMerge,
     normalizeTag
   };
 }
