@@ -1,15 +1,13 @@
-# Textorium
+# Textorium 2.0 — The Intelligent Local Palette
 
-Textorium is a Chrome extension (Manifest V3) for local text snippet management.
+Textorium is a modern, local-first Chrome extension (Manifest V3) for managing text snippets, AI prompts, and dynamic templates in a persistent Side Panel or popup.
 
-- Local storage only (`chrome.storage.local`)
-- No telemetry
-- No content scripts
-- No external network access
+- **Side Panel First**: Keep your palette open alongside ChatGPT, Claude, Gmail, Notion, or GitHub.
+- **Dynamic Prompt Templates**: Define variables like `{{target:beginner}}` and fill them out interactively before copying.
+- **Zero-Friction Capturing**: Automatic title inference and `#hashtag` parsing.
+- **Strict Privacy**: Local storage only (`chrome.storage.local`), zero external network requests, zero telemetry.
 
 ## 1. 使い方 (日本語)
-
-詳細な図解マニュアルは [docs/manual.html](docs/manual.html) を参照してください。
 
 ### インストール
 
@@ -17,50 +15,44 @@ Textorium is a Chrome extension (Manifest V3) for local text snippet management.
 2. 右上の `デベロッパーモード` を ON
 3. `パッケージ化されていない拡張機能を読み込む` をクリック
 4. このリポジトリのルートフォルダを選択
-5. ツールバーの Textorium アイコンをクリックして起動
+5. ツールバーの Textorium アイコンをクリック（ポップアップまたは「◨ サイドパネル」で起動）
 
-### 基本操作
+### 基本操作と新機能
 
-1. 画面右上で言語を `日本語 / EN` から選択
-2. `タイトル` と `本文` を入力して保存
-3. 必要に応じてタグ名/カテゴリを入力
-4. 検索、タグ絞り込み、お気に入り絞り込みを組み合わせて抽出
-5. 並び替え条件と昇順/降順を切り替え
-6. 必要なスニペットを `コピー` / `編集` / `削除`
-7. `エクスポート` でバックアップ、`インポート` で復元
-
-### キーボード操作
-
-- 新規作成:
-  - 単一行入力で `Enter` 保存
-  - 本文入力で `Ctrl/Cmd + Enter` 保存
-- 編集フォーム:
-  - 単一行入力で `Enter` 保存
-  - 本文入力で `Ctrl/Cmd + Enter` 保存
-  - `Esc` でキャンセル
+1. **常駐型 Side Panel**:
+   - ポップアップ右上の `◨ サイドパネル` ボタンをクリックすると、ブラウザ右側に常時固定表示。
+   - 他のタブやWebページを操作しても閉じず、スムーズにプロンプトや定型文を参照・コピーできます。
+2. **動的プロンプトテンプレート (`{{変数名:デフォルト値}}`)**:
+   - 本文に `{{変数名}}` または `{{変数名:デフォルト値}}` を含めると、自動的に `⚡️ TEMPLATE` として認識されます。
+   - 「⚡️ 展開してコピー」をクリックすると入力モーダルが開き、穴埋めした上でリアルタイムプレビュー＆即時コピーが可能です。
+3. **ゼロフリクション登録**:
+   - 右上の `+ 新規作成` をクリック。
+   - タイトルは空欄のままでも本文1行目から自動推測されます。
+   - 本文中の `#tag` も自動抽出されます。
+4. **ワンクリックコピー**:
+   - 通常のスニペットはカードの「📋 コピー」を押すだけでクリップボードに即座にコピーされます。
+5. **クイックタブ & タグフィルタ**:
+   - `すべて`、`★ お気に入り`、`⚡️ テンプレート` のタブ切り替えや、タグチップをクリックして瞬時に抽出。
+6. **バックアップ & サンプル**:
+   - 右上の `⚙️` アイコンから JSON エクスポート/インポート、便利なサンプルプロンプトの追加が可能です。
 
 ## 2. Quick Start (English)
 
-See [docs/manual.html](docs/manual.html) for a detailed manual with screenshots.
-
 1. Open `chrome://extensions` and enable Developer mode.
 2. Click `Load unpacked` and select this repository root.
-3. Open the popup from the browser toolbar.
-4. Create snippets, then use search/tag/favorites/sort to retrieve them.
-5. Use export/import JSON for backup and restore.
+3. Click the extension icon in the toolbar.
+4. Click `◨ Side Panel` in the top right to pin Textorium alongside your active browser tab.
+5. Create prompts with variables (e.g. `Summarize for {{target:beginners}}:\n{{content}}`) and enjoy interactive prompt filling and zero-click copying.
 
-## 3. Current Features
+## 3. Core Features (Textorium 2.0)
 
-- Create, edit, delete snippets
-- Favorite toggle
-- Japanese/English language switch (saved in local settings)
-- Search by title/content/tags
-- Tag filter + favorites-only filter
-- Sort by created/updated/title/favorite
-- Copy content to clipboard
-- Export/import JSON with validation and merge-by-id
-- Theme toggle (light/dark)
-- Collapsible sections and a compact list area for easier popup use
+- **Persistent Side Panel**: Full integration with Chrome Side Panel API (`sidepanel.html`).
+- **Dynamic Template Runner**: Live interactive variable substitution with `{{variable:default}}` syntax.
+- **Instant Search & Dynamic Tags**: Instant multi-keyword search, dynamic tag bubbles, and tab-based quick filtering.
+- **One-Click Quick Copy & Toast**: Copy feedback directly on the card with visual toast notifications.
+- **Inferred Titles & Hashtags**: No mandatory title/category burden; automatic title deduction and hashtag discovery.
+- **Premium Responsive UI**: Curated slate/indigo aesthetic, dark mode support, and glassmorphic micro-animations.
+- **Export & Import JSON**: Safe local backup and restore with ID-based merging.
 
 ## 4. Data Model
 

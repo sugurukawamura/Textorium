@@ -1,13 +1,20 @@
 {
   "manifest_version": 3,
   "name": "Textorium",
-  "version": "1.0.0",
-  "description": "Manage and save text snippets locally from the popup.",
+  "version": "2.0.0",
+  "description": "The Intelligent Local Palette - Manage snippets, prompts & dynamic templates locally with Side Panel.",
   "action": {
     "default_popup": "popup.html",
     "default_title": "Textorium"
   },
   "permissions": [
-    "storage"
-  ]
+    "storage",
+    "sidePanel"
+  ],
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
 }

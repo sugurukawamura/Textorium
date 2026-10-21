@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Textorium 2.0 - Side Panel</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body class="sidepanel-mode">
+  <div class="app">
+    <!-- Top Bar -->
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-icon">✨</span>
+        <h1 class="brand-name">Textorium</h1>
+        <span class="brand-badge">2.0</span>
+      </div>
+      <div class="toolbar">
+        <button id="quickAddBtn" class="btn-primary-pill" data-i18n-text="action.quickAdd" data-aria-key="aria.quickAdd">
+          + 新規作成
+        </button>
+        <button id="settingsToggleBtn" class="btn-icon" title="設定・バックアップ" aria-label="設定">⚙️</button>
+        <button id="themeToggleBtn" class="btn-icon" data-aria-key="aria.themeToggle" title="テーマ切替">🌙</button>
+        <select id="languageSelect" class="lang-select" data-aria-key="aria.language">
+          <option value="ja">日本語</option>
+          <option value="en">EN</option>
+        </select>
+      </div>
+    </header>
+
+    <!-- New Snippet Section (Details / Drawer) -->
+    <details id="editorDrawer" class="section drawer" open>
+      <summary><span id="drawerTitle" data-i18n-text="section.add">新規スニペット</span></summary>
+      <div class="drawer-body">
+        <input type="hidden" id="editSnippetId" value="" />
+        <div class="form-group">
+          <label for="title" data-i18n-text="field.title">タイトル</label>
+          <input type="text" id="title" placeholder="タイトル（空欄なら1行目から自動生成）" data-i18n-placeholder="placeholder.title" data-aria-key="aria.title" maxlength="200" />
+        </div>
+        <div class="form-row two-cols">
+          <div class="form-group">
+            <label for="tagName" data-i18n-text="field.tagName">タグ名</label>
+            <input type="text" id="tagName" placeholder="例: prompt, work" data-i18n-placeholder="placeholder.tagName" data-aria-key="aria.tagName" maxlength="50" />
+          </div>
+          <div class="form-group">
+            <label for="tagCategory" data-i18n-text="field.tagCategory">カテゴリ</label>
+            <input type="text" id="tagCategory" placeholder="例: general" data-i18n-placeholder="placeholder.tagCategory" data-aria-key="aria.tagCategory" maxlength="50" />
+          </div>
+        </div>
+        <div class="form-group">
+          <div class="label-row">
+            <label for="content" data-i18n-text="field.content">本文</label>
+            <span class="field-hint">💡 <code>{{変数名:デフォルト値}}</code> で動的テンプレート</span>
+          </div>
+          <textarea id="content" rows="4" placeholder="本文を入力... #tag も自動認識されます" data-i18n-placeholder="placeholder.content" data-aria-key="aria.content" maxlength="10000"></textarea>
+        </div>
+        <div class="drawer-actions">
+          <button id="saveSnippetBtn" class="btn-primary" data-i18n-text="action.saveSnippet" data-aria-key="aria.saveSnippet">保存</button>
+          <button id="cancelDrawerBtn" class="btn-ghost" data-i18n-text="action.cancel">キャンセル</button>
+        </div>
+      </div>
+    </details>
+
+    <!-- Search & Filter Controls -->
+    <section class="controls-panel section">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="searchInput" placeholder="タイトル・本文・タグで瞬時検索..." data-i18n-placeholder="placeholder.search" data-aria-key="aria.search" autocomplete="off" />
+        <button id="clearSearchBtn" class="btn-clear-search hidden" title="クリア">✕</button>
+        <button id="searchBtn" class="btn-search-submit" data-i18n-text="action.search">検索</button>
+      </div>
+
+      <!-- Quick Nav Tabs -->
+      <div class="quick-tabs">
+        <button class="tab-chip active" data-tab="all">
+          <span data-i18n-text="tab.all">すべて</span>
+          <span id="allCountBadge" class="count-badge">0</span>
+        </button>
+        <button class="tab-chip" data-tab="favorites">
+          <span data-i18n-text="tab.favorites">★ お気に入り</span>
+          <span id="favCountBadge" class="count-badge">0</span>
+        </button>
+        <button class="tab-chip" data-tab="templates">
+          <span data-i18n-text="tab.templates">⚡️ テンプレート</span>
+          <span id="templateCountBadge" class="count-badge">0</span>
+        </button>
+      </div>
+
+      <!-- Dynamic Tag Chips & Sort Filter Bar -->
+      <div class="filter-sort-bar">
+        <div id="dynamicTagsList" class="dynamic-tags-list">
+          <!-- Tag chips rendered here -->
+        </div>
+        <div class="sort-selector">
+          <select id="sortBy" data-aria-key="aria.sortBy">
+            <option value="updatedAt" data-i18n-text="sort.updatedAt">更新日</option>
+            <option value="createdAt" data-i18n-text="sort.createdAt">作成日</option>
+            <option value="title" data-i18n-text="sort.title">タイトル</option>
+            <option value="favorite" data-i18n-text="sort.favorite">お気に入り優先</option>
+          </select>
+          <button id="sortDirection" class="btn-sort-dir" data-aria-key="aria.sortDirection" title="昇順/降順切替">↓</button>
+        </div>
+      </div>
+
+      <!-- Compatibility elements -->
+      <div class="hidden-compat">
+        <select id="filterTags"><option value="">すべてのタグ</option></select>
+        <button id="filterFavoritesBtn">お気に入り: OFF</button>
+        <button id="searchBtn">検索</button>
+        <button id="applySortBtn">適用</button>
+        <button id="clearFilterBtn">フィルタをリセット</button>
+      </div>
+    </section>
+
+    <!-- Main Snippets Feed -->
+    <main class="snippets-container">
+      <div id="snippetList" class="snippets-feed"></div>
+    </main>
+
+    <!-- Dynamic Template Runner Modal -->
+    <div id="templateModal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <span class="modal-badge">⚡️ TEMPLATE</span>
+            <h3 id="templateModalTitle" class="modal-title">プロンプトを展開</h3>
+          </div>
+          <button id="closeTemplateModalBtn" class="btn-icon-subtle">✕</button>
+        </div>
+        <p class="modal-desc" data-i18n-text="modal.templateDesc">変数を入力してクリップボードにコピーします。</p>
+        <div id="templateFieldsContainer" class="template-fields-list">
+          <!-- Dynamic inputs rendered here -->
+        </div>
+        <div class="preview-section">
+          <label class="preview-label" data-i18n-text="modal.templatePreview">展開後プレビュー</label>
+          <pre id="templateLivePreview" class="preview-box"></pre>
+        </div>
+        <div class="modal-actions">
+          <button id="copyRenderedBtn" class="btn-primary" data-i18n-text="action.copy">コピー</button>
+          <button id="cancelTemplateBtn" class="btn-ghost" data-i18n-text="action.cancel">キャンセル</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings & Transfer Modal -->
+    <div id="settingsModal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3 class="modal-title">⚙️ 設定とデータ管理</h3>
+          <button id="closeSettingsModalBtn" class="btn-icon-subtle">✕</button>
+        </div>
+        <div class="settings-content">
+          <div class="settings-group">
+            <h4>バックアップ / 復元</h4>
+            <div class="backup-actions">
+              <button id="exportBtn" class="btn-secondary" data-i18n-text="action.export">JSONをエクスポート</button>
+              <label class="btn-secondary file-label">
+                <span data-i18n-text="field.import">JSONをインポート</span>
+                <input type="file" id="importInput" accept="application/json" class="hidden-file" />
+              </label>
+            </div>
+          </div>
+          <div class="settings-group">
+            <h4>サンプルプロンプト</h4>
+            <p class="hint-text">動的テンプレートや活用例のサンプルスニペットをワンクリックで追加できます。</p>
+            <button id="addSamplesBtn" class="btn-ghost" data-i18n-text="action.addSample">サンプルを追加</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toastMessage" class="toast hidden" role="status" aria-live="polite"></div>
+    <div id="statusMessage" class="status-message hidden" role="status"></div>
+  </div>
+
+  <script src="utils.js"></script>
+  <script src="snippet-domain.js"></script>
+  <script src="i18n.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
