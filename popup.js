@@ -547,7 +547,7 @@
       snippet.title = editTitleInput.value.trim() || (domain.inferTitleFromContent ? domain.inferTitleFromContent(editContentInput.value) : "Untitled");
       snippet.content = editContentInput.value.trim();
       const tagNames = editTagInput.value.split(/[,、]/).map((s) => s.trim().replace(/^#/, "")).filter(Boolean);
-      snippet.tags = tagNames.map((name) => ({ name, category: "general" }));
+      snippet.tags = tagNames.map((name) => domain.normalizeTag({ name, category: "general" })).filter(Boolean);
       snippet.updatedAt = Date.now();
 
       await setStoredSnippets(state.snippets);
@@ -777,7 +777,7 @@
 
     const inlineHashtags = domain.extractHashtags ? domain.extractHashtags(rawContent).map((t) => t.name) : [];
     const allTagNames = Array.from(new Set([...manualTags, ...inlineHashtags]));
-    const tagObjects = allTagNames.map((name) => ({ name, category: "general" }));
+    const tagObjects = allTagNames.map((name) => domain.normalizeTag({ name, category: "general" })).filter(Boolean);
 
     const id = editSnippetId.value;
     const now = Date.now();

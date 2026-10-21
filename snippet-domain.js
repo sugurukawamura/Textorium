@@ -357,7 +357,8 @@ const snippetDomain = {
   extractTemplateVariables,
   renderTemplate,
   extractHashtags,
-  inferTitleFromContent
+  inferTitleFromContent,
+  normalizeTag: internalNormalizeTag
 };
 
 if (typeof window !== "undefined") {

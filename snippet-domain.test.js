@@ -11,8 +11,18 @@ const {
   extractTemplateVariables,
   renderTemplate,
   extractHashtags,
-  inferTitleFromContent
+  inferTitleFromContent,
+  normalizeTag
 } = require("./snippet-domain.js");
+
+test("normalizeTag is exported for UI and creates a stable key", () => {
+  assert.deepStrictEqual(normalizeTag({ name: " Work ", category: " " }), {
+    name: "Work",
+    category: "general",
+    key: "work:general"
+  });
+  assert.strictEqual(normalizeTag({ name: "  " }), null);
+});
 
 test("getSnippetTags returns [] when tags is missing or invalid", () => {
   assert.deepStrictEqual(getSnippetTags({}), []);
